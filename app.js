@@ -1093,16 +1093,16 @@ function openEditPanel() {
     const overlay = document.getElementById('editPanelOverlay');
     const panel = document.getElementById('editPanel');
     overlay.classList.remove('hidden');
-    panel.classList.remove('translate-x-full');
-    panel.classList.add('translate-x-0');
+    panel.classList.remove('closed');
+    panel.classList.add('open');
 }
 
 // Close edit panel
 function closeEditPanel() {
     const overlay = document.getElementById('editPanelOverlay');
     const panel = document.getElementById('editPanel');
-    panel.classList.remove('translate-x-0');
-    panel.classList.add('translate-x-full');
+    panel.classList.remove('open');
+    panel.classList.add('closed');
     overlay.classList.add('hidden');
 }
 
@@ -1192,9 +1192,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Export Database button
     document.getElementById('exportDatabaseBtn').addEventListener('click', exportDatabase);
-
-    // Reset Local Changes button
-    document.getElementById('resetChangesBtn').addEventListener('click', resetLocalChanges);
 
     // Form submit
     document.getElementById('artistForm').addEventListener('submit', saveArtist);

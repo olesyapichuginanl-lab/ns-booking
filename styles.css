@@ -410,12 +410,14 @@ thead th {
     border-color: var(--border) !important;
 }
 
-#sidePanel.open {
-    transform: translateX(0);
+#sidePanel.open,
+#editPanel.open {
+    transform: translateX(0) !important;
 }
 
-#sidePanel.closed {
-    transform: translateX(100%);
+#sidePanel.closed,
+#editPanel.closed {
+    transform: translateX(100%) !important;
 }
 
 #editPanelOverlay {
