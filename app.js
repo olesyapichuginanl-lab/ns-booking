@@ -5,6 +5,9 @@ let currentPage = 1;
 let pageSize = 25;
 let searchTimeout = null;
 let appMode = localStorage.getItem('appMode') || 'private'; // 'public' | 'private'
+let sortColumn = localStorage.getItem('artistSortColumn') || 'name';
+let sortDirection = localStorage.getItem('artistSortDirection') || 'asc';
+let currentView = localStorage.getItem('crmView') || 'dashboard'; // 'dashboard' | 'artists'
 
 function toggleMode() {
     appMode = appMode === 'private' ? 'public' : 'private';
@@ -12,6 +15,35 @@ function toggleMode() {
     applyMode();
     renderArtists();
     if (selectedArtistId) showSidePanel(selectedArtistId);
+}
+
+function switchView(view) {
+    currentView = view;
+    localStorage.setItem('crmView', currentView);
+    applyView();
+}
+
+function applyView() {
+    const dashboard = document.getElementById('dashboardView');
+    const artists = document.getElementById('artistsView');
+    const tabDashboard = document.getElementById('tabDashboard');
+    const tabArtists = document.getElementById('tabArtists');
+
+    if (!dashboard || !artists) return;
+
+    if (currentView === 'dashboard') {
+        dashboard.classList.remove('hidden');
+        artists.classList.add('hidden');
+        tabDashboard?.classList.add('active');
+        tabArtists?.classList.remove('active');
+        renderDashboard();
+    } else {
+        dashboard.classList.add('hidden');
+        artists.classList.remove('hidden');
+        tabDashboard?.classList.remove('active');
+        tabArtists?.classList.add('active');
+        renderArtists();
+    }
 }
 
 function applyMode() {
@@ -25,6 +57,20 @@ function applyMode() {
     if (slider) slider.style.transform = isPublic ? 'translateX(0)' : 'translateX(100%)';
     if (pubLabel) pubLabel.classList.toggle('mode-active', isPublic);
     if (privLabel) privLabel.classList.toggle('mode-active', !isPublic);
+}
+
+// Ensure every artist object has all CRM fields with defaults
+function normalizeArtist(artist) {
+    return {
+        ...artist,
+        manager: artist.manager ?? '',
+        lastContact: artist.lastContact ?? '',
+        nextContact: artist.nextContact ?? '',
+        nextAction: artist.nextAction ?? '',
+        artistSource: artist.artistSource ?? '',
+        internalNotes: artist.internalNotes ?? '',
+        timeline: Array.isArray(artist.timeline) ? artist.timeline : []
+    };
 }
 
 // Load a single source file and return its artists array
@@ -55,7 +101,7 @@ async function loadArtists() {
         const sources = Array.isArray(index.sources) ? index.sources : [];
 
         const results = await Promise.all(sources.map(loadSourceFile));
-        artists = results.flat();
+        artists = results.flat().map(normalizeArtist);
     } catch (error) {
         console.error('Error loading artists:', error);
         artists = [];
@@ -64,7 +110,7 @@ async function loadArtists() {
     loadNotesFromLocalStorage();
     buildFilters();
     applyMode();
-    renderArtists();
+    applyView();
 }
 
 // Save artists to JSON (simulated - in real app, this would be a backend API)
@@ -114,7 +160,6 @@ function renderArtists() {
     const countryFilter = document.getElementById('countryFilter').value;
     const bookingStatusFilter = document.getElementById('bookingStatusFilter').value;
     const agencyTypeFilter = document.getElementById('agencyTypeFilter').value;
-    const sortBy = document.getElementById('sortBy').value;
 
     // Filter artists
     let filteredArtists = artists.filter(artist => {
@@ -139,14 +184,25 @@ function renderArtists() {
     });
 
     // Sort artists
+    const multiplier = sortDirection === 'asc' ? 1 : -1;
     filteredArtists.sort((a, b) => {
-        if (sortBy === 'name') return a.name.localeCompare(b.name);
-        if (sortBy === 'country') return (a.country || '').localeCompare(b.country || '');
-        if (sortBy === 'priority') return (b.priority || 0) - (a.priority || 0);
-        if (sortBy === 'interest') return (b.interest || 0) - (a.interest || 0);
-        if (sortBy === 'agency') return (a.agency || 'Independent').localeCompare(b.agency || 'Independent');
-
-        return 0;
+        let valA, valB;
+        switch (sortColumn) {
+            case 'name': valA = a.name || ''; valB = b.name || ''; break;
+            case 'genre': valA = a.genre || ''; valB = b.genre || ''; break;
+            case 'country': valA = a.country || ''; valB = b.country || ''; break;
+            case 'agency': valA = a.agency || 'Independent'; valB = b.agency || 'Independent'; break;
+            case 'bookingFee': valA = a.bookingFee ?? a.price ?? 0; valB = b.bookingFee ?? b.price ?? 0; break;
+            case 'plannedEvent': valA = a.plannedEvent || ''; valB = b.plannedEvent || ''; break;
+            case 'bookingStatus': valA = a.bookingStatus || ''; valB = b.bookingStatus || ''; break;
+            case 'interest': valA = a.interest || 0; valB = b.interest || 0; break;
+            case 'priority': valA = a.priority || 0; valB = b.priority || 0; break;
+            default: return 0;
+        }
+        if (typeof valA === 'number' && typeof valB === 'number') {
+            return (valA - valB) * multiplier;
+        }
+        return valA.localeCompare(valB) * multiplier;
     });
 
     // Calculate pagination
@@ -166,18 +222,20 @@ function renderArtists() {
     tableBody.innerHTML = paginatedArtists.map((artist, index) => `
         <tr class="${selectedArtistId === artist.id ? 'selected' : ''} fade-in" style="animation-delay:${index * 0.015}s" onclick="selectArtist('${artist.id}')">
             <td class="px-4 py-3 whitespace-nowrap">
-                <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">${artist.name.charAt(0).toUpperCase()}</div>
-                    <span class="text-sm font-medium text-white">${artist.name}</span>
+                <div class="flex items-center gap-2.5">
+                    <div class="crm-avatar">${artist.name.charAt(0).toUpperCase()}</div>
+                    <span class="font-medium text-sm">${artist.name}</span>
                 </div>
             </td>
             <td class="px-4 py-3 whitespace-nowrap">
                 <span class="${genreClass(artist.genre)} badge">${artist.genre || '-'}</span>
             </td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400">${flagLabel(artist.country)}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-400">${artist.agency || 'Independent'}</td>
-            <td class="private-only px-4 py-3 whitespace-nowrap text-sm font-mono text-amber-400">${getBookingFeeLabel(artist.bookingFee ?? artist.price)}</td>
-            <td class="private-only px-4 py-3 whitespace-nowrap text-sm text-gray-400">${artist.plannedEvent || '-'}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm">${flagLabel(artist.country)}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm">
+                <span class="agency-${slugify(artist.agency || 'independent')} badge">${artist.agency || 'Independent'}</span>
+            </td>
+            <td class="private-only px-4 py-3 whitespace-nowrap text-sm font-mono">${getBookingFeeLabel(artist.bookingFee ?? artist.price)}</td>
+            <td class="private-only px-4 py-3 whitespace-nowrap text-sm">${artist.plannedEvent || '-'}</td>
             <td class="private-only px-4 py-3 whitespace-nowrap">
                 <span class="bstatus-${slugify(artist.bookingStatus)} badge">${artist.bookingStatus || '-'}</span>
             </td>
@@ -187,6 +245,44 @@ function renderArtists() {
     `).join('');
 
     updatePagination(filteredArtists.length, totalPages);
+    updateSortArrows();
+}
+
+// Toggle column sorting
+function sortBy(column) {
+    if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortColumn = column;
+        sortDirection = 'asc';
+    }
+    localStorage.setItem('artistSortColumn', sortColumn);
+    localStorage.setItem('artistSortDirection', sortDirection);
+    currentPage = 1;
+    renderArtists();
+}
+
+// Render arrow indicators on table headers
+function updateSortArrows() {
+    document.querySelectorAll('.sortable-header').forEach(th => {
+        const up = th.querySelector('.sort-arrow-up');
+        const down = th.querySelector('.sort-arrow-down');
+        if (!up || !down) return;
+
+        up.classList.remove('active');
+        down.classList.remove('active');
+
+        if (th.dataset.column === sortColumn) {
+            th.classList.add('sort-active');
+            if (sortDirection === 'asc') {
+                up.classList.add('active');
+            } else {
+                down.classList.add('active');
+            }
+        } else {
+            th.classList.remove('sort-active');
+        }
+    });
 }
 
 // Update pagination controls
@@ -372,7 +468,7 @@ function importJsonFile(event) {
                 const currentMap = new Map(artists.map(a => [a.id, a]));
                 imported.forEach(item => {
                     if (item && item.id) {
-                        currentMap.set(item.id, { ...(currentMap.get(item.id) || {}), ...item });
+                        currentMap.set(item.id, normalizeArtist({ ...(currentMap.get(item.id) || {}), ...item }));
                     }
                 });
                 artists = Array.from(currentMap.values());
@@ -384,9 +480,10 @@ function importJsonFile(event) {
                 buildFilters();
 
                 // Re-render
+                if (currentView === 'dashboard') renderDashboard();
                 renderArtists();
 
-                alert('JSON файл успешно импортирован!');
+                alert('JSON импортирован');
             } else {
                 alert('Ошибка: JSON файл должен содержать массив артистов');
             }
@@ -404,13 +501,15 @@ function importJsonFile(event) {
 
 // Reset all local edits and reload original JSON data
 function resetLocalChanges() {
-    if (!confirm('Reset all local changes? This will remove edits stored in localStorage and reload data from JSON files.')) {
+    if (!confirm('Сбросить все локальные изменения? Это удалит правки из localStorage и перезагрузит данные из JSON-файлов.')) {
         return;
     }
     localStorage.removeItem('artist_edits');
     localStorage.removeItem('artists');
-    loadArtists();
-    alert('Local changes reset. Original data reloaded.');
+    loadArtists().then(() => {
+        if (currentView === 'dashboard') renderDashboard();
+    });
+    alert('Локальные изменения сброшены. Оригинальные данные загружены.');
 }
 
 // Export database as JSON (merges current artists incl. localStorage edits)
@@ -431,7 +530,7 @@ function exportDatabase() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    alert('Database exported as artists-export.json');
+    alert('База экспортирована как artists-export.json');
 }
 
 // Select artist and open side panel
@@ -481,45 +580,42 @@ function showSidePanel(id) {
 
     const panelContent = document.getElementById('panelContent');
     panelContent.innerHTML = `
-        <div class="flex items-center gap-3 mb-5">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl font-bold text-white flex-shrink-0">${artist.name.charAt(0).toUpperCase()}</div>
-            <div>
-                <h3 class="text-lg font-semibold text-white leading-tight">${artist.name}</h3>
-                <span class="${genreClass(artist.genre)} badge mt-1 inline-block">${artist.genre || '-'}</span>
+        <div class="flex items-center gap-3.5 mb-6">
+            <div class="w-12 h-12 rounded-full crm-avatar text-lg">${artist.name.charAt(0).toUpperCase()}</div>
+            <div class="min-w-0">
+                <h3 class="crm-section-title text-white leading-tight truncate">${artist.name}</h3>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="${genreClass(artist.genre)} badge">${artist.genre || '-'}</span>
+                    <span class="agency-${slugify(artist.agency || 'independent')} badge">${artist.agency || 'Independent'}</span>
+                </div>
             </div>
         </div>
 
-        <div class="space-y-3">
-
+        <div class="space-y-5">
             <div class="panel-row">
-                <div class="detail-label">Country</div>
+                <div class="detail-label">Страна</div>
                 <div class="detail-value">${flagLabel(artist.country)}</div>
             </div>
 
             <div class="panel-row">
-                <div class="detail-label">Agency</div>
-                <div class="detail-value">${artist.agency || '-'}</div>
-            </div>
-
-            <div class="panel-row">
-                <div class="detail-label">Agency Type</div>
+                <div class="detail-label">Тип агентства</div>
                 <div class="detail-value">${artist.agencyType || '-'}</div>
             </div>
 
             <div class="panel-row private-only">
-                <div class="detail-label">Booking Email</div>
+                <div class="detail-label">Контакт</div>
                 <div class="detail-value flex items-center justify-between gap-2">
                     <span class="truncate text-sm">${artist.contact || '-'}</span>
-                    ${artist.contact ? `<button onclick="copyToClipboard('${artist.contact}')" class="crm-btn-sm">Copy</button>` : ''}
+                    ${artist.contact ? `<button onclick="copyToClipboard('${artist.contact}')" class="crm-btn-sm">Копировать</button>` : ''}
                 </div>
             </div>
 
             ${artist.website ? `
             <div class="panel-row">
-                <div class="detail-label">Website</div>
+                <div class="detail-label">Сайт</div>
                 <div class="detail-value flex items-center justify-between gap-2">
-                    <span class="truncate text-blue-400 text-sm">${artist.website}</span>
-                    <button onclick="openLink('${artist.website}')" class="crm-btn-sm">Open</button>
+                    <span class="truncate text-sm">${artist.website}</span>
+                    <button onclick="openLink('${artist.website}')" class="crm-btn-sm">Открыть</button>
                 </div>
             </div>` : ''}
 
@@ -528,7 +624,7 @@ function showSidePanel(id) {
                 <div class="detail-label">Instagram</div>
                 <div class="detail-value flex items-center justify-between gap-2">
                     <span class="truncate text-sm">${artist.instagram}</span>
-                    <button onclick="openLink('https://instagram.com/${artist.instagram.replace('@','')}')" class="crm-btn-sm">Open</button>
+                    <button onclick="openLink('https://instagram.com/${artist.instagram.replace('@','')}')" class="crm-btn-sm">Открыть</button>
                 </div>
             </div>` : ''}
 
@@ -538,47 +634,75 @@ function showSidePanel(id) {
                 <div class="detail-value text-sm">${artist.facebook}</div>
             </div>` : ''}
 
-            <div class="private-only" style="border-top:1px solid #374151;margin:4px 0"></div>
-
-            <div class="panel-row private-only">
-                <div class="detail-label">Booking Fee</div>
-                <div class="detail-value font-mono text-amber-400 text-base">${getBookingFeeLabel(artist.bookingFee ?? artist.price)}</div>
-            </div>
-
-            <div class="panel-row private-only">
-                <div class="detail-label">Booking Status</div>
-                <div class="detail-value">
-                    <span class="bstatus-${slugify(artist.bookingStatus)} badge">${artist.bookingStatus || '-'}</span>
+            <div class="private-only border-t border-gray-700 pt-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="panel-row">
+                        <div class="detail-label">Booking Fee</div>
+                        <div class="detail-value font-mono text-base">${getBookingFeeLabel(artist.bookingFee ?? artist.price)}</div>
+                    </div>
+                    <div class="panel-row">
+                        <div class="detail-label">Статус</div>
+                        <div class="detail-value">
+                            <span class="bstatus-${slugify(artist.bookingStatus)} badge">${artist.bookingStatus || '-'}</span>
+                        </div>
+                    </div>
+                    <div class="panel-row">
+                        <div class="detail-label">Интерес</div>
+                        <div class="detail-value">${starsLabel(artist.interest)}</div>
+                    </div>
+                    <div class="panel-row">
+                        <div class="detail-label">Приоритет</div>
+                        <div class="detail-value">${starsLabel(artist.priority)}</div>
+                    </div>
                 </div>
             </div>
 
             <div class="panel-row private-only">
-                <div class="detail-label">Interest</div>
-                <div class="detail-value">${starsLabel(artist.interest)}</div>
-            </div>
-
-            <div class="panel-row private-only">
-                <div class="detail-label">Priority</div>
-                <div class="detail-value">${starsLabel(artist.priority)}</div>
-            </div>
-
-            <div class="panel-row private-only">
-                <div class="detail-label">Planned Event</div>
+                <div class="detail-label">Запланированное событие</div>
                 <div class="detail-value">${artist.plannedEvent || '-'}</div>
             </div>
 
-            <div class="private-only" style="border-top:1px solid #374151;margin:4px 0"></div>
-
-            <div class="private-only">
-                <div class="detail-label mb-1">Notes</div>
+            <div class="private-only border-t border-gray-700 pt-4">
+                <div class="detail-label mb-1">Заметки</div>
                 <textarea
                     id="artistNotesEdit"
-                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    class="w-full bg-gray-700 border border-gray-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     rows="4"
-                    placeholder="Add notes..."
+                    placeholder="Добавить заметки..."
                     onchange="saveNotesToLocalStorage('${artist.id}', this.value)"
                 >${artist.notes || ''}</textarea>
             </div>
+
+            <div class="private-only border-t border-gray-700 pt-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="panel-row">
+                        <div class="detail-label">Manager</div>
+                        <div class="detail-value">${artist.manager || '-'}</div>
+                    </div>
+                    <div class="panel-row">
+                        <div class="detail-label">Artist Source</div>
+                        <div class="detail-value">${artist.artistSource || '-'}</div>
+                    </div>
+                    <div class="panel-row">
+                        <div class="detail-label">Last Contact</div>
+                        <div class="detail-value">${artist.lastContact || '-'}</div>
+                    </div>
+                    <div class="panel-row">
+                        <div class="detail-label">Next Contact</div>
+                        <div class="detail-value">${artist.nextContact || '-'}</div>
+                    </div>
+                </div>
+                <div class="panel-row">
+                    <div class="detail-label">Next Action</div>
+                    <div class="detail-value">${artist.nextAction || '-'}</div>
+                </div>
+                <div class="panel-row">
+                    <div class="detail-label">Internal Notes</div>
+                    <div class="detail-value text-sm">${artist.internalNotes || '-'}</div>
+                </div>
+            </div>
+
+            ${renderTimelineReadonly(artist.timeline || [])}
 
         </div>
     `;
@@ -586,6 +710,219 @@ function showSidePanel(id) {
     const sidePanel = document.getElementById('sidePanel');
     sidePanel.classList.remove('closed');
     sidePanel.classList.add('open');
+}
+
+// Dashboard rendering
+function renderDashboard() {
+    const isPublic = appMode === 'public';
+
+    // KPIs
+    const total = artists.length;
+    const activeNegotiations = artists.filter(a => a.bookingStatus === 'Negotiating').length;
+    const needContact = artists.filter(a => !a.lastContact || isOverdue(a.nextContact)).length;
+    const confirmed = artists.filter(a => a.bookingStatus === 'Confirmed' || a.bookingStatus === 'Booked').length;
+    const overdue = artists.filter(a => isOverdue(a.nextContact)).length;
+
+    const kpiData = [
+        { label: 'Всего артистов', value: total, color: 'blue' },
+        { label: 'В переговорах', value: activeNegotiations, color: 'amber' },
+        { label: 'Нужен контакт', value: needContact, color: 'purple' },
+        { label: 'Подтверждено', value: confirmed, color: 'green' },
+        { label: 'Просрочено', value: overdue, color: 'red' }
+    ];
+
+    document.getElementById('kpiCards').innerHTML = kpiData.map(kpi => `
+        <div class="kpi-card kpi-${kpi.color}">
+            <div class="kpi-value">${kpi.value}</div>
+            <div class="kpi-label">${kpi.label}</div>
+        </div>
+    `).join('');
+
+    if (!isPublic) {
+        // Today's tasks
+        const tasks = generateTasks();
+        renderTaskList('tasksList', 'tasksCount', tasks);
+
+        // AI Recommendations
+        const recommendations = generateRecommendations();
+        renderTaskList('recommendationsList', 'recommendationsCount', recommendations);
+
+        // Waiting for reply
+        const waiting = artists
+            .filter(a => a.bookingStatus === 'Waiting Reply')
+            .sort((a, b) => new Date(a.lastContact || 0) - new Date(b.lastContact || 0));
+        renderArtistList('waitingList', 'waitingCount', waiting, 'lastContact');
+
+        // Upcoming events
+        const events = groupByPlannedEvent();
+        renderEvents(events);
+    }
+}
+
+function isOverdue(dateStr) {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+}
+
+function isToday(dateStr) {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+}
+
+function daysSince(dateStr) {
+    if (!dateStr) return Infinity;
+    const date = new Date(dateStr);
+    const today = new Date();
+    return Math.floor((today - date) / (1000 * 60 * 60 * 24));
+}
+
+function generateTasks() {
+    const tasks = [];
+    artists.forEach(a => {
+        if (a.nextContact && (isToday(a.nextContact) || isOverdue(a.nextContact))) {
+            tasks.push({ artist: a, text: `Связаться с артистом (Next Contact ${a.nextContact})`, type: 'contact' });
+        }
+        if (a.bookingStatus === 'Waiting Reply') {
+            tasks.push({ artist: a, text: 'Ожидает ответа — проверить статус', type: 'waiting' });
+        }
+        if (!a.plannedEvent) {
+            tasks.push({ artist: a, text: 'Запланировать событие', type: 'event' });
+        }
+        if ((a.bookingFee === undefined || a.bookingFee === null || a.bookingFee === 0) && (a.price === undefined || a.price === null || a.price === 0)) {
+            tasks.push({ artist: a, text: 'Указать Booking Fee', type: 'fee' });
+        }
+    });
+    return tasks;
+}
+
+function generateRecommendations() {
+    const recs = [];
+    artists.forEach(a => {
+        if (!a.instagram) {
+            recs.push({ artist: a, text: 'Добавить Instagram', type: 'instagram' });
+        }
+        if ((a.bookingFee === undefined || a.bookingFee === null || a.bookingFee === 0) && (a.price === undefined || a.price === null || a.price === 0)) {
+            recs.push({ artist: a, text: 'Указать Booking Fee', type: 'fee' });
+        }
+        if (!a.manager) {
+            recs.push({ artist: a, text: 'Назначить менеджера', type: 'manager' });
+        }
+        if (a.bookingStatus === 'Negotiating' && a.lastContact && daysSince(a.lastContact) > 14) {
+            recs.push({ artist: a, text: 'Переговоры простаивают более 14 дней', type: 'stale' });
+        }
+        if (!a.plannedEvent) {
+            recs.push({ artist: a, text: 'Добавить Planned Event', type: 'event' });
+        }
+    });
+    return recs;
+}
+
+function groupByPlannedEvent() {
+    const map = new Map();
+    artists.forEach(a => {
+        const event = a.plannedEvent?.trim() || 'Без события';
+        if (!map.has(event)) map.set(event, { event, artists: [] });
+        map.get(event).artists.push(a);
+    });
+    return Array.from(map.values()).sort((a, b) => b.artists.length - a.artists.length);
+}
+
+function renderTaskList(containerId, countId, items) {
+    const container = document.getElementById(containerId);
+    const count = document.getElementById(countId);
+    if (!container || !count) return;
+    count.textContent = items.length;
+
+    if (items.length === 0) {
+        container.innerHTML = '<div class="dashboard-empty">Нет данных</div>';
+        return;
+    }
+
+    container.innerHTML = items.slice(0, 20).map(item => `
+        <div class="dashboard-item" onclick="goToArtist('${item.artist.id}')">
+            <div class="dashboard-item-icon ${item.type}"></div>
+            <div class="dashboard-item-body">
+                <div class="dashboard-item-title">${escapeHtml(item.artist.name)}</div>
+                <div class="dashboard-item-text">${escapeHtml(item.text)}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderArtistList(containerId, countId, items, dateField) {
+    const container = document.getElementById(containerId);
+    const count = document.getElementById(countId);
+    if (!container || !count) return;
+    count.textContent = items.length;
+
+    if (items.length === 0) {
+        container.innerHTML = '<div class="dashboard-empty">Нет данных</div>';
+        return;
+    }
+
+    container.innerHTML = items.map(a => `
+        <div class="dashboard-item" onclick="goToArtist('${a.id}')">
+            <div class="dashboard-item-body">
+                <div class="dashboard-item-title">${escapeHtml(a.name)}</div>
+                <div class="dashboard-item-text">${dateField && a[dateField] ? 'Последний контакт: ' + a[dateField] : (a.bookingStatus || '-')}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderEvents(events) {
+    const container = document.getElementById('eventsList');
+    const count = document.getElementById('eventsCount');
+    if (!container || !count) return;
+    count.textContent = events.length;
+
+    if (events.length === 0) {
+        container.innerHTML = '<div class="dashboard-empty">Нет данных</div>';
+        return;
+    }
+
+    container.innerHTML = events.map(e => `
+        <div class="dashboard-event-card">
+            <div class="dashboard-event-name">${escapeHtml(e.event)}</div>
+            <div class="dashboard-event-count">${e.artists.length} артист${e.artists.length === 1 ? '' : e.artists.length < 5 ? 'а' : 'ов'}</div>
+        </div>
+    `).join('');
+}
+
+function goToArtist(id) {
+    selectedArtistId = id;
+    switchView('artists');
+    showSidePanel(id);
+    renderArtists();
+}
+
+// Render a read-only timeline block for the side panel
+function renderTimelineReadonly(timeline) {
+    const sorted = [...timeline].sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (sorted.length === 0) return '';
+
+    const items = sorted.map(entry => `
+        <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+                <div class="timeline-meta">${entry.date || 'No date'}</div>
+                <div class="timeline-title">${escapeHtml(entry.title || 'No title')}</div>
+                <div class="timeline-comment">${escapeHtml(entry.comment || '')}</div>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+        <div class="private-only border-t border-gray-700 pt-4">
+            <div class="detail-label mb-2">Timeline</div>
+            <div class="timeline-list">${items}</div>
+        </div>
+    `;
 }
 
 // Close side panel
@@ -597,50 +934,182 @@ function closeSidePanel() {
     renderArtists();
 }
 
-// Open modal for adding artist
-function openAddModal() {
-    document.getElementById('modalTitle').textContent = 'Добавить артиста';
-    document.getElementById('artistForm').reset();
-    document.getElementById('artistId').value = '';
-    document.getElementById('artistModal').classList.remove('hidden');
-    document.getElementById('artistModal').classList.add('flex');
+function populateEditPanel(artist) {
+    const isNew = !artist;
+    const a = artist || {};
+
+    document.getElementById('editPanelTitle').textContent = isNew ? 'New Artist' : (a.name || 'Artist');
+    document.getElementById('editPanelGenre').textContent = a.genre || '-';
+    document.getElementById('editPanelGenre').className = `badge ${genreClass(a.genre)}`;
+    document.getElementById('editPanelCountry').textContent = a.country ? flagLabel(a.country) + ' ' + a.country : '';
+    document.getElementById('editPanelAgency').textContent = a.agency ? '· ' + a.agency : '';
+
+    document.getElementById('artistId').value = a.id || '';
+    document.getElementById('artistName').value = a.name || '';
+    document.getElementById('artistGenre').value = a.genre || '';
+    document.getElementById('artistContact').value = a.contact || '';
+    document.getElementById('artistDescription').value = a.description || '';
+    document.getElementById('artistCountry').value = a.country || '';
+    document.getElementById('artistAgency').value = a.agency || '';
+    document.getElementById('artistStatus').value = a.status || 'active';
+    document.getElementById('artistPriority').value = a.priority || 0;
+    document.getElementById('artistInterest').value = a.interest || 0;
+    document.getElementById('artistBookingStatus').value = a.bookingStatus || '';
+    document.getElementById('artistAgencyType').value = a.agencyType || '';
+    document.getElementById('artistPlannedEvent').value = a.plannedEvent || '';
+    document.getElementById('artistBookingFee').value = a.bookingFee ?? a.price ?? 0;
+    document.getElementById('artistWebsite').value = a.website || '';
+    document.getElementById('artistInstagram').value = a.instagram || '';
+    document.getElementById('artistFacebook').value = a.facebook || '';
+    document.getElementById('artistNotes').value = a.notes || '';
+
+    // CRM fields
+    document.getElementById('artistManager').value = a.manager || '';
+    document.getElementById('artistLastContact').value = a.lastContact || '';
+    document.getElementById('artistNextContact').value = a.nextContact || '';
+    document.getElementById('artistNextAction').value = a.nextAction || '';
+    document.getElementById('artistSource').value = a.artistSource || '';
+    document.getElementById('artistInternalNotes').value = a.internalNotes || '';
+
+    renderTimelineEditor(a.timeline || []);
 }
 
-// Open modal for editing artist
+// Render timeline editor entries in the edit panel
+function renderTimelineEditor(timeline) {
+    const editor = document.getElementById('timelineEditor');
+    const empty = document.getElementById('timelineEmpty');
+    if (!editor || !empty) return;
+
+    const sorted = [...timeline].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (sorted.length === 0) {
+        editor.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+
+    empty.classList.add('hidden');
+    editor.innerHTML = sorted.map((entry, index) => `
+        <div class="timeline-entry" data-index="${index}">
+            <div class="grid grid-cols-3 gap-3 mb-2">
+                <div class="col-span-1">
+                    <input type="date" class="timeline-date w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm" value="${entry.date || ''}">
+                </div>
+                <div class="col-span-2">
+                    <input type="text" class="timeline-title w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm" placeholder="Title" value="${escapeHtml(entry.title || '')}">
+                </div>
+            </div>
+            <textarea class="timeline-comment w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm mb-2" rows="2" placeholder="Comment">${escapeHtml(entry.comment || '')}</textarea>
+            <div class="flex justify-end">
+                <button type="button" onclick="deleteTimelineEntry(this)" class="btn-danger" style="height: 28px; padding: 0 10px; font-size: 0.8rem;">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    Удалить
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Collect timeline entries from the edit panel, sorted newest first
+function collectTimelineEntries() {
+    const editor = document.getElementById('timelineEditor');
+    if (!editor) return [];
+    const entries = [];
+    editor.querySelectorAll('.timeline-entry').forEach(entry => {
+        entries.push({
+            date: entry.querySelector('.timeline-date').value,
+            title: entry.querySelector('.timeline-title').value,
+            comment: entry.querySelector('.timeline-comment').value
+        });
+    });
+    return entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+// Add a new empty timeline entry
+function addTimelineEntry() {
+    const editor = document.getElementById('timelineEditor');
+    const empty = document.getElementById('timelineEmpty');
+    if (!editor) return;
+    if (empty) empty.classList.add('hidden');
+
+    const today = new Date().toISOString().split('T')[0];
+    const div = document.createElement('div');
+    div.className = 'timeline-entry';
+    div.innerHTML = `
+        <div class="grid grid-cols-3 gap-3 mb-2">
+            <div class="col-span-1">
+                <input type="date" class="timeline-date w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm" value="${today}">
+            </div>
+            <div class="col-span-2">
+                <input type="text" class="timeline-title w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm" placeholder="Title">
+            </div>
+        </div>
+        <textarea class="timeline-comment w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm mb-2" rows="2" placeholder="Comment"></textarea>
+        <div class="flex justify-end">
+            <button type="button" onclick="deleteTimelineEntry(this)" class="btn-danger" style="height: 28px; padding: 0 10px; font-size: 0.8rem;">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                Удалить
+            </button>
+        </div>
+    `;
+    editor.insertBefore(div, editor.firstChild);
+}
+
+// Delete a timeline entry from the edit panel
+function deleteTimelineEntry(button) {
+    const entry = button.closest('.timeline-entry');
+    if (!entry) return;
+    entry.remove();
+    const editor = document.getElementById('timelineEditor');
+    const empty = document.getElementById('timelineEmpty');
+    if (editor && empty && editor.querySelectorAll('.timeline-entry').length === 0) {
+        empty.classList.remove('hidden');
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Open edit panel for adding artist
+function openAddModal() {
+    document.getElementById('artistForm').reset();
+    populateEditPanel(null);
+    openEditPanel();
+}
+
+// Open edit panel for editing artist
 function editArtist() {
     if (!selectedArtistId) return;
-    
+
     const artist = artists.find(a => a.id === selectedArtistId);
     if (!artist) return;
 
-    document.getElementById('modalTitle').textContent = 'Редактировать артиста';
-    document.getElementById('artistId').value = artist.id;
-    document.getElementById('artistName').value = artist.name;
-    document.getElementById('artistGenre').value = artist.genre;
-    document.getElementById('artistContact').value = artist.contact || '';
-    document.getElementById('artistDescription').value = artist.description || '';
-    document.getElementById('artistCountry').value = artist.country || '';
-    document.getElementById('artistAgency').value = artist.agency || '';
-    document.getElementById('artistStatus').value = artist.status || 'active';
-    document.getElementById('artistPriority').value = artist.priority || 0;
-    document.getElementById('artistInterest').value = artist.interest || 0;
-    document.getElementById('artistBookingStatus').value = artist.bookingStatus || '';
-    document.getElementById('artistAgencyType').value = artist.agencyType || '';
-    document.getElementById('artistPlannedEvent').value = artist.plannedEvent || '';
-    document.getElementById('artistBookingFee').value = artist.bookingFee ?? artist.price ?? 0;
-    document.getElementById('artistWebsite').value = artist.website || '';
-    document.getElementById('artistInstagram').value = artist.instagram || '';
-    document.getElementById('artistFacebook').value = artist.facebook || '';
-    document.getElementById('artistNotes').value = artist.notes || '';
-
-    document.getElementById('artistModal').classList.remove('hidden');
-    document.getElementById('artistModal').classList.add('flex');
+    populateEditPanel(artist);
+    openEditPanel();
 }
 
-// Close modal
-function closeModal() {
-    document.getElementById('artistModal').classList.add('hidden');
-    document.getElementById('artistModal').classList.remove('flex');
+function openEditPanel() {
+    const overlay = document.getElementById('editPanelOverlay');
+    const panel = document.getElementById('editPanel');
+    overlay.classList.remove('hidden');
+    panel.classList.remove('translate-x-full');
+    panel.classList.add('translate-x-0');
+}
+
+// Close edit panel
+function closeEditPanel() {
+    const overlay = document.getElementById('editPanelOverlay');
+    const panel = document.getElementById('editPanel');
+    panel.classList.remove('translate-x-0');
+    panel.classList.add('translate-x-full');
+    overlay.classList.add('hidden');
 }
 
 // Save artist (add or edit)
@@ -666,7 +1135,14 @@ function saveArtist(event) {
         website: document.getElementById('artistWebsite').value,
         instagram: document.getElementById('artistInstagram').value,
         facebook: document.getElementById('artistFacebook').value,
-        notes: document.getElementById('artistNotes').value
+        notes: document.getElementById('artistNotes').value,
+        manager: document.getElementById('artistManager').value,
+        lastContact: document.getElementById('artistLastContact').value,
+        nextContact: document.getElementById('artistNextContact').value,
+        nextAction: document.getElementById('artistNextAction').value,
+        artistSource: document.getElementById('artistSource').value,
+        internalNotes: document.getElementById('artistInternalNotes').value,
+        timeline: collectTimelineEntries()
     };
 
     if (id) {
@@ -687,24 +1163,26 @@ function saveArtist(event) {
     saveArtists();
     saveArtistEdit(artistData.id);
     renderArtists();
-    closeModal();
+    if (currentView === 'dashboard') renderDashboard();
+    closeEditPanel();
 }
 
 // Delete artist
 function deleteArtist() {
     if (!selectedArtistId) return;
     
-    if (confirm('Вы уверены, что хотите удалить этого артиста?')) {
+    if (confirm('Удалить этого артиста?')) {
         artists = artists.filter(a => a.id !== selectedArtistId);
         saveArtists();
         closeSidePanel();
         renderArtists();
+        if (currentView === 'dashboard') renderDashboard();
     }
 }
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    // Load artists on page load
+    // Load artists on page load (renderArtists inside will update arrows)
     loadArtists();
 
     // Add artist button
@@ -723,9 +1201,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Reset Local Changes button
     document.getElementById('resetChangesBtn').addEventListener('click', resetLocalChanges);
-
-    // Cancel button
-    document.getElementById('cancelBtn').addEventListener('click', closeModal);
 
     // Form submit
     document.getElementById('artistForm').addEventListener('submit', saveArtist);
@@ -751,9 +1226,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Agency type filter
     document.getElementById('agencyTypeFilter').addEventListener('change', renderArtists);
 
-    // Sort by
-    document.getElementById('sortBy').addEventListener('change', renderArtists);
-
     // Pagination controls
     document.getElementById('firstPageBtn').addEventListener('click', goToFirstPage);
     document.getElementById('prevPageBtn').addEventListener('click', goToPrevPage);
@@ -770,17 +1242,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Delete artist button
     document.getElementById('deleteArtistBtn').addEventListener('click', deleteArtist);
 
-    // Close modal on outside click
-    document.getElementById('artistModal').addEventListener('click', (e) => {
-        if (e.target === document.getElementById('artistModal')) {
-            closeModal();
-        }
+    // Close edit panel on outside click (overlay)
+    document.getElementById('editPanelOverlay').addEventListener('click', () => {
+        closeEditPanel();
     });
 
-    // Close modal on Escape key
+    // Close edit panel on Escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            closeModal();
+            closeEditPanel();
             closeSidePanel();
         }
     });
