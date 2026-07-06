@@ -1,0 +1,425 @@
+/* Professional Dark Theme Styles */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* {
+    font-family: 'Inter', sans-serif;
+    box-sizing: border-box;
+}
+
+body {
+    background: #0a0e17;
+    color: #e2e8f0;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1f2e;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3b4a5f;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4a5a70;
+}
+
+/* Table Styles */
+table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+thead th {
+    background: linear-gradient(180deg, #1a1f2e 0%, #151925 100%);
+    border-bottom: 1px solid #2d3548;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    padding: 0.75rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#artistsTableBody tr {
+    transition: all 0.15s ease;
+    cursor: pointer;
+    border-bottom: 1px solid #1a1f2e;
+}
+
+#artistsTableBody tr:hover {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);
+}
+
+#artistsTableBody tr.selected {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+    border-left: 2px solid #3b82f6;
+}
+
+#artistsTableBody td {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+}
+
+/* ── Mode visibility ───────────────────────────────────────── */
+.mode-public .private-only {
+    display: none !important;
+}
+
+/* ── Mode Toggle Widget ────────────────────────────────────── */
+.mode-toggle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: #1e2535;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 3px;
+    gap: 0;
+    cursor: pointer;
+    user-select: none;
+    height: 36px;
+}
+
+.mode-option {
+    position: relative;
+    z-index: 1;
+    padding: 0 12px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #6b7280;
+    white-space: nowrap;
+    transition: color 0.2s;
+    line-height: 30px;
+}
+
+.mode-option.mode-active {
+    color: #f9fafb;
+}
+
+.mode-slider {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: calc(50% - 3px);
+    height: calc(100% - 6px);
+    background: #2d3a4f;
+    border: 1px solid #4b5563;
+    border-radius: 5px;
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 0;
+}
+
+/* ── Shared badge base ─────────────────────────────────────── */
+.badge {
+    display: inline-block;
+    padding: 0.18rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+/* Booking Status badges */
+.bstatus-not-contacted { background: #2a2a3a; color: #8888aa; }
+.bstatus-contacted     { background: #1a2f50; color: #7ab0e0; }
+.bstatus-negotiating   { background: #3a2d10; color: #d4a855; }
+.bstatus-confirmed     { background: #1a3525; color: #6dbf8f; }
+.bstatus-declined      { background: #3a1a1a; color: #cc7070; }
+.bstatus-none          { background: #222230; color: #555566; }
+
+/* Panel helpers */
+.panel-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.crm-btn-sm {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.15rem 0.55rem;
+    border-radius: 4px;
+    background: #2d3548;
+    color: #93c5fd;
+    border: 1px solid #3b4a5f;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.crm-btn-sm:hover {
+    background: #3b4a5f;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Genre Badge Colors — pastel/muted palette (lowercase-hyphen names from genreClass()) */
+.genre-hardcore {
+    background: #5a2020;
+    color: #f4b8b8;
+}
+
+.genre-uptempo {
+    background: #5a3010;
+    color: #f4c89a;
+}
+
+.genre-frenchcore {
+    background: #3d2257;
+    color: #d4aef0;
+}
+
+.genre-millennium {
+    background: #1a2f50;
+    color: #a8c4e8;
+}
+
+.genre-early-hardcore {
+    background: #1a3a2a;
+    color: #90d4ae;
+}
+
+.genre-industrial {
+    background: #2a3040;
+    color: #9aaec2;
+}
+
+.genre-crossbreed {
+    background: #2e2240;
+    color: #b8a8d8;
+}
+
+.genre-oldschool-hardcore {
+    background: #3d2e1a;
+    color: #d4b890;
+}
+
+.genre-terror {
+    background: #3d1a22;
+    color: #d48890;
+}
+
+.genre-speedcore {
+    background: #252525;
+    color: #a0a0a0;
+}
+
+.genre-happy-hardcore {
+    background: #4a1f38;
+    color: #f0a8cc;
+}
+
+/* Fallback for unknown genres */
+[class^='genre-'] {
+    background: #2a2a3a;
+    color: #9090b0;
+}
+
+/* Legacy status badge colors */
+.status-active   { background: #1a3525; color: #6dbf8f; }
+.status-inactive { background: #3a1a1a; color: #cc7070; }
+.status-pending  { background: #3a2d10; color: #d4a855; }
+
+/* Side Panel Animation */
+#sidePanel {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
+}
+
+#sidePanel.open {
+    transform: translateX(0);
+}
+
+#sidePanel.closed {
+    transform: translateX(100%);
+}
+
+/* Modal Animation */
+#artistModal {
+    transition: opacity 0.2s ease;
+    backdrop-filter: blur(4px);
+}
+
+#artistModal.show {
+    opacity: 1;
+}
+
+#artistModal.hidden {
+    opacity: 0;
+}
+
+/* Button Styles */
+button {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 500;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Input Styles */
+input,
+select,
+textarea {
+    transition: all 0.2s ease;
+    background: #1a1f2e;
+    border: 1px solid #2d3548;
+    color: #e2e8f0;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    outline: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #64748b;
+}
+
+/* Panel Detail Styles */
+.detail-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.35rem;
+}
+
+.detail-value {
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+/* Header Gradient */
+header {
+    background: linear-gradient(180deg, #1a1f2e 0%, #151925 100%);
+    border-bottom: 1px solid #2d3548;
+}
+
+/* Filter Bar */
+.bg-gray-800\/50 {
+    background: rgba(26, 31, 46, 0.8);
+    backdrop-filter: blur(8px);
+}
+
+/* Avatar Gradient */
+.w-8.h-8.rounded-full,
+.w-16.h-16.rounded-full {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+}
+
+/* Pagination Styles */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: #1a1f2e;
+    border-top: 1px solid #2d3548;
+}
+
+.pagination button {
+    padding: 0.5rem 1rem;
+    background: #2d3548;
+    border: 1px solid #3b4a5f;
+    color: #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination .page-info {
+    color: #64748b;
+    font-size: 0.85rem;
+    margin: 0 1rem;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    #sidePanel {
+        width: 80%;
+    }
+}
+
+@media (max-width: 768px) {
+    #sidePanel {
+        width: 100%;
+    }
+    
+    header {
+        padding: 1rem;
+    }
+    
+    .flex.gap-3 {
+        flex-wrap: wrap;
+    }
+    
+    table {
+        font-size: 0.75rem;
+    }
+    
+    thead th,
+    #artistsTableBody td {
+        padding: 0.5rem 0.75rem;
+    }
+}
+
+/* Loading Animation */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-spinner {
+    animation: spin 1s linear infinite;
+}
+
+/* Fade In Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease;
+}

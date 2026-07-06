@@ -1,0 +1,39 @@
+[
+  {
+    "id": "noculan_djrob",
+    "name": "DJ Rob",
+    "genre": "Oldschool Hardcore",
+    "country": "Netherlands",
+    "agency": "Noculan Bookings",
+    "status": "active",
+    "priority": 5,
+    "contact": "",
+    "website": "",
+    "instagram": "",
+    "facebook": "",
+    "price": 0,
+    "description": "Legendary Dutch oldschool hardcore DJ.",
+    "notes": ""
+  },
+  {
+    "id": "amnesys",
+    "name": "Amnesys",
+    "genre": "Mainstream Hardcore",
+    "country": "Italy",
+    "agency": "",
+    "status": "active",
+    "priority": 5,
+    "contact": "",
+    "website": "",
+    "instagram": "",
+    "facebook": "",
+    "price": 4,
+    "description": "Italian mainstream hardcore producer.",
+    "notes": "",
+    "agencyType": "Independent",
+    "bookingFee": 4,
+    "bookingStatus": "Not contacted",
+    "interest": 5,
+    "plannedEvent": "TBA"
+  }
+]

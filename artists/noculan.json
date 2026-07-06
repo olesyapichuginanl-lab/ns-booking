@@ -1,0 +1,23 @@
+{
+  "artists": [
+    {
+      "id": "noculan_djrob",
+      "name": "DJ Rob",
+      "genre": "Oldschool Hardcore",
+      "country": "Netherlands",
+      "agency": "Noculan Bookings",
+      "agencyType": "Small Agency",
+      "bookingStatus": "",
+      "bookingFee": 3,
+      "interest": 0,
+      "priority": 5,
+      "contact": "",
+      "website": "",
+      "instagram": "",
+      "facebook": "",
+      "plannedEvent": "TBA",
+      "description": "Legendary Dutch oldschool hardcore DJ.",
+      "notes": ""
+    }
+  ]
+}
