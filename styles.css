@@ -41,6 +41,17 @@ h1 { font-size: 1.75rem; }
 h2 { font-size: 1.5rem; }
 h3 { font-size: 1.15rem; }
 
+.crm-title {
+    font-size: 1.5rem;
+    letter-spacing: 0.05em;
+    line-height: 1;
+}
+
+header p {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
 input, select, textarea, table, .crm-body, .crm-description, .crm-notes {
     font-family: 'Inter', sans-serif;
 }
@@ -74,6 +85,10 @@ header,
     border-color: var(--border) !important;
 }
 
+header {
+    padding: 0.75rem 1.25rem;
+}
+
 .bg-gray-700,
 .bg-gray-700\/50 {
     background: var(--bg-elevated) !important;
@@ -100,7 +115,7 @@ button, .crm-button {
     height: 34px;
     padding: 0 14px;
     border-radius: var(--radius);
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -109,6 +124,7 @@ button, .crm-button {
     border: none;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
+    white-space: nowrap;
 }
 
 button:hover {
@@ -123,6 +139,52 @@ button:active {
 button svg, .crm-button svg {
     width: 16px;
     height: 16px;
+}
+
+/* Icon-only toolbar buttons */
+.btn-icon {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: var(--radius);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.btn-icon:hover {
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.btn-icon:active {
+    transform: translateY(0);
+}
+
+.btn-icon.btn-icon-danger {
+    color: #f87171;
+    border-color: rgba(220, 38, 38, 0.25);
+}
+
+.btn-icon.btn-icon-danger:hover {
+    background: rgba(220, 38, 38, 0.12);
+    border-color: rgba(220, 38, 38, 0.35);
+}
+
+.btn-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.mode-public .btn-icon {
+    color: var(--text-primary);
 }
 
 .btn-primary {
@@ -273,6 +335,10 @@ thead th {
 
 /* Mode visibility */
 .mode-public .private-only {
+    display: none !important;
+}
+
+.mode-private .public-only {
     display: none !important;
 }
 

@@ -13,6 +13,7 @@ function toggleMode() {
     appMode = appMode === 'private' ? 'public' : 'private';
     localStorage.setItem('appMode', appMode);
     applyMode();
+    if (currentView === 'dashboard') renderDashboard();
     renderArtists();
     if (selectedArtistId) showSidePanel(selectedArtistId);
 }
@@ -50,13 +51,6 @@ function applyMode() {
     const isPublic = appMode === 'public';
     document.body.classList.toggle('mode-public', isPublic);
     document.body.classList.toggle('mode-private', !isPublic);
-    // Toggle indicator
-    const slider = document.getElementById('modeSlider');
-    const pubLabel = document.getElementById('modePublic');
-    const privLabel = document.getElementById('modePrivate');
-    if (slider) slider.style.transform = isPublic ? 'translateX(0)' : 'translateX(100%)';
-    if (pubLabel) pubLabel.classList.toggle('mode-active', isPublic);
-    if (privLabel) privLabel.classList.toggle('mode-active', !isPublic);
 }
 
 // Ensure every artist object has all CRM fields with defaults
