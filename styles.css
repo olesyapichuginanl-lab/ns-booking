@@ -188,12 +188,23 @@ button svg, .crm-button svg {
 }
 
 .btn-primary {
-    background: var(--accent);
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: #fff;
+    padding: 0 18px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .btn-primary:hover {
-    background: var(--accent-hover);
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.btn-primary svg {
+    width: 17px;
+    height: 17px;
 }
 
 .btn-secondary {
