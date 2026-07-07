@@ -6,6 +6,7 @@
     <title>BookingDB - Концертное агентство</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="analytics.css">
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen">
     <div class="flex h-screen overflow-hidden">
@@ -64,6 +65,17 @@
                     <section class="mb-6">
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="kpiCards">
                             <!-- KPI cards rendered here -->
+                        </div>
+                    </section>
+
+                    <!-- Missing Links -->
+                    <section class="mb-6 private-only" id="missingLinksSection" style="display: none;">
+                        <div class="dashboard-section">
+                            <div class="dashboard-section-header">
+                                <h2 class="dashboard-section-title">Добавить ссылки</h2>
+                                <span class="dashboard-count" id="missingLinksCount">0</span>
+                            </div>
+                            <div id="missingLinksList" class="dashboard-list"></div>
                         </div>
                     </section>
 
@@ -230,7 +242,7 @@
             <div class="h-full flex flex-col">
                 <!-- Panel Header -->
                 <div class="border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-                    <h2 class="crm-section-title text-white">Детали артиста</h2>
+                    <h2 class="crm-section-title text-white">Профиль артиста</h2>
                     <button id="closePanelBtn" type="button" class="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/5 cursor-pointer">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -238,13 +250,21 @@
                     </button>
                 </div>
 
-                <!-- Panel Content -->
-                <div id="panelContent" class="flex-1 overflow-auto p-6">
-                    <!-- Artist details will be inserted here -->
+                <!-- Panel Tabs -->
+                <div class="ai-panel-tabs">
+                    <button id="tabCrm" class="ai-panel-tab active" onclick="switchArtistTab('crm')">CRM</button>
+                    <button id="tabAnalytics" class="ai-panel-tab" onclick="switchArtistTab('analytics')">Analytics</button>
+                    <button id="tabDocuments" class="ai-panel-tab" onclick="switchArtistTab('documents')">Documents</button>
+                    <button id="tabAi" class="ai-panel-tab" onclick="switchArtistTab('ai')">AI</button>
+                </div>
+
+                <!-- Panel Body -->
+                <div id="panelBody" class="ai-panel-body">
+                    <!-- Artist tab content will be inserted here -->
                 </div>
 
                 <!-- Panel Footer -->
-                <div class="private-only border-t border-gray-700 px-6 py-4 flex gap-3">
+                <div id="panelFooter" class="private-only border-t border-gray-700 px-6 py-4 flex gap-3">
                     <button id="editArtistBtn" class="flex-1 btn-primary">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                         Редактировать
@@ -380,6 +400,30 @@
                             <label class="block text-gray-300 mb-1.5 text-sm">Facebook</label>
                             <input type="text" id="artistFacebook" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
+                        <div>
+                            <label class="block text-gray-300 mb-1.5 text-sm">Spotify</label>
+                            <input type="url" id="artistSpotify" placeholder="https://open.spotify.com/artist/..." class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-1.5 text-sm">YouTube</label>
+                            <input type="url" id="artistYouTube" placeholder="https://youtube.com/@..." class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-1.5 text-sm">TikTok</label>
+                            <input type="url" id="artistTikTok" placeholder="https://tiktok.com/@..." class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-1.5 text-sm">Yandex Music</label>
+                            <input type="url" id="artistYandex" placeholder="https://music.yandex.ru/artist/..." class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-1.5 text-sm">SoundCloud</label>
+                            <input type="url" id="artistSoundCloud" placeholder="https://soundcloud.com/..." class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 mb-1.5 text-sm">VK</label>
+                            <input type="url" id="artistVK" placeholder="https://vk.com/..." class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
                     </div>
                 </section>
 
@@ -460,6 +504,7 @@
         </div>
     </div>
 
+    <script src="analytics.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

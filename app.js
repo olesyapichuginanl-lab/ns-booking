@@ -8,6 +8,7 @@ let appMode = localStorage.getItem('appMode') || 'private'; // 'public' | 'priva
 let sortColumn = localStorage.getItem('artistSortColumn') || 'name';
 let sortDirection = localStorage.getItem('artistSortDirection') || 'asc';
 let currentView = localStorage.getItem('crmView') || 'dashboard'; // 'dashboard' | 'artists'
+let currentArtistTab = 'crm'; // 'crm' | 'analytics' | 'documents' | 'ai'
 
 function toggleMode() {
     appMode = appMode === 'private' ? 'public' : 'private';
@@ -53,6 +54,49 @@ function applyMode() {
     document.body.classList.toggle('mode-private', !isPublic);
 }
 
+function switchArtistTab(tab) {
+    currentArtistTab = tab;
+    if (selectedArtistId) renderArtistTab();
+}
+
+function updateArtistTabUI() {
+    const tabs = ['crm', 'analytics', 'documents', 'ai'];
+    tabs.forEach(t => {
+        const el = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+        el?.classList.toggle('active', t === currentArtistTab);
+    });
+
+    const footer = document.getElementById('panelFooter');
+    if (footer) {
+        footer.classList.toggle('hidden', currentArtistTab !== 'crm');
+    }
+}
+
+async function renderArtistTab() {
+    const artist = artists.find(a => a.id === selectedArtistId);
+    if (!artist) return;
+
+    updateArtistTabUI();
+    const panelBody = document.getElementById('panelBody');
+    if (!panelBody) return;
+    panelBody.scrollTop = 0;
+
+    if (currentArtistTab === 'crm') {
+        panelBody.innerHTML = renderArtistCrm(artist);
+    } else if (currentArtistTab === 'analytics') {
+        if (typeof window.renderArtistAnalytics !== 'function') {
+            panelBody.innerHTML = '<div class="ai-tab-placeholder">Модуль аналитики не загружен</div>';
+            return;
+        }
+        panelBody.innerHTML = '<div class="ai-tab-placeholder"><svg class="animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>Обновляется...</div>';
+        panelBody.innerHTML = await window.renderArtistAnalytics(artist);
+    } else if (currentArtistTab === 'documents') {
+        panelBody.innerHTML = renderArtistDocuments(artist);
+    } else if (currentArtistTab === 'ai') {
+        panelBody.innerHTML = renderArtistAi(artist);
+    }
+}
+
 // Ensure every artist object has all CRM fields with defaults
 function normalizeArtist(artist) {
     return {
@@ -63,6 +107,15 @@ function normalizeArtist(artist) {
         nextAction: artist.nextAction ?? '',
         artistSource: artist.artistSource ?? '',
         internalNotes: artist.internalNotes ?? '',
+        website: artist.website ?? '',
+        instagram: artist.instagram ?? '',
+        facebook: artist.facebook ?? '',
+        spotify: artist.spotify ?? '',
+        youtube: artist.youtube ?? '',
+        tiktok: artist.tiktok ?? '',
+        yandex: artist.yandex ?? '',
+        soundcloud: artist.soundcloud ?? '',
+        vk: artist.vk ?? '',
         timeline: Array.isArray(artist.timeline) ? artist.timeline : []
     };
 }
@@ -101,10 +154,30 @@ async function loadArtists() {
         artists = [];
     }
 
+    // Merge artists added or edited via the UI (stored in localStorage)
+    mergeLocalStorageArtists();
     loadNotesFromLocalStorage();
     buildFilters();
     applyMode();
     applyView();
+}
+
+function mergeLocalStorageArtists() {
+    let stored = [];
+    try {
+        stored = JSON.parse(localStorage.getItem('artists') || '[]');
+    } catch (e) {
+        stored = [];
+    }
+    if (!Array.isArray(stored) || stored.length === 0) return;
+
+    const map = new Map(artists.map(a => [a.id, a]));
+    stored.forEach(a => {
+        if (a && a.id) {
+            map.set(a.id, normalizeArtist({ ...(map.get(a.id) || {}), ...a }));
+        }
+    });
+    artists = Array.from(map.values());
 }
 
 // Save artists to JSON (simulated - in real app, this would be a backend API)
@@ -420,12 +493,13 @@ function mergeArtistEdits() {
         edits = {};
     }
 
-    artists = artists.map(artist => {
-        if (edits[artist.id]) {
-            return { ...artist, ...edits[artist.id] };
+    const map = new Map(artists.map(artist => [artist.id, artist]));
+    Object.values(edits).forEach(edit => {
+        if (edit && edit.id) {
+            map.set(edit.id, normalizeArtist({ ...(map.get(edit.id) || {}), ...edit }));
         }
-        return artist;
     });
+    artists = Array.from(map.values());
 }
 
 // Legacy: notes still persisted via the same artist edits map
@@ -435,6 +509,7 @@ function saveNotesToLocalStorage(artistId, notes) {
         artist.notes = notes;
     }
     saveArtistEdit(artistId);
+    saveArtists();
 }
 
 // Load notes from localStorage (kept for compat; mergeArtistEdits does the real work)
@@ -473,9 +548,10 @@ function importJsonFile(event) {
                 // Rebuild filters from new data
                 buildFilters();
 
-                // Re-render
+                // Re-render and persist
                 if (currentView === 'dashboard') renderDashboard();
                 renderArtists();
+                saveArtists();
 
                 alert('JSON импортирован');
             } else {
@@ -572,8 +648,62 @@ function showSidePanel(id) {
     const artist = artists.find(a => a.id === id);
     if (!artist) return;
 
-    const panelContent = document.getElementById('panelContent');
-    panelContent.innerHTML = `
+    selectedArtistId = id;
+    currentArtistTab = 'crm';
+
+    const sidePanel = document.getElementById('sidePanel');
+    sidePanel.classList.remove('closed');
+    sidePanel.classList.add('open');
+
+    renderArtistTab();
+
+    // Background analytics refresh so history is updated even if user stays on CRM tab
+    if (window.AnalyticsService) {
+        window.AnalyticsService.getArtistAnalytics(artist).catch(() => {});
+    }
+}
+
+function renderArtistPlatforms(artist) {
+    if (!window.PlatformManager || !window.PLATFORM_META) return '';
+    const statuses = window.PlatformManager.getAllStatuses(artist);
+    const fields = statuses.map(s => {
+        const meta = window.PLATFORM_META[s.platform];
+        const statusClass = s.connected ? 'platform-status-ok' : s.invalid ? 'platform-status-warn' : 'platform-status-off';
+        const statusText = s.connected ? '✓ Connected' : s.invalid ? '⚠ Invalid link' : '○ Not specified';
+        return `
+            <div class="platform-field-row ${s.invalid ? 'platform-invalid' : ''}">
+                <div class="platform-field-icon" style="color:${meta.color}">${meta.icon}</div>
+                <input type="url" class="platform-field-input"
+                    value="${escapeHtml(s.url)}"
+                    placeholder="${meta.name} URL"
+                    onchange="updatePlatformLink('${artist.id}', '${s.platform}', this.value)"
+                    onblur="updatePlatformLink('${artist.id}', '${s.platform}', this.value)">
+                <div class="platform-field-status ${statusClass}">${statusText}</div>
+            </div>`;
+    }).join('');
+    return `
+        <div class="private-only border-t border-gray-700 pt-4 mt-4">
+            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Платформы</h3>
+            <div class="platform-fields">${fields}</div>
+        </div>`;
+}
+
+window.updatePlatformLink = function(artistId, platform, url) {
+    const artist = artists.find(a => a.id === artistId);
+    if (!artist) return;
+    artist[platform] = url.trim();
+    saveArtists();
+    saveArtistEdit(artistId);
+    if (window.AnalyticsService) {
+        window.AnalyticsService.invalidateCache(artistId);
+    }
+    if (selectedArtistId === artistId) {
+        renderArtistTab();
+    }
+};
+
+function renderArtistCrm(artist) {
+    return `
         <div class="flex items-center gap-3.5 mb-6">
             <div class="w-12 h-12 rounded-full crm-avatar text-lg">${artist.name.charAt(0).toUpperCase()}</div>
             <div class="min-w-0">
@@ -613,20 +743,13 @@ function showSidePanel(id) {
                 </div>
             </div>` : ''}
 
-            ${artist.instagram ? `
-            <div class="panel-row">
-                <div class="detail-label">Instagram</div>
-                <div class="detail-value flex items-center justify-between gap-2">
-                    <span class="truncate text-sm">${artist.instagram}</span>
-                    <button onclick="openLink('https://instagram.com/${artist.instagram.replace('@','')}')" class="crm-btn-sm">Открыть</button>
-                </div>
-            </div>` : ''}
-
             ${artist.facebook ? `
             <div class="panel-row">
                 <div class="detail-label">Facebook</div>
                 <div class="detail-value text-sm">${artist.facebook}</div>
             </div>` : ''}
+
+            ${renderArtistPlatforms(artist)}
 
             <div class="private-only border-t border-gray-700 pt-4">
                 <div class="grid grid-cols-2 gap-4">
@@ -700,10 +823,26 @@ function showSidePanel(id) {
 
         </div>
     `;
+}
 
-    const sidePanel = document.getElementById('sidePanel');
-    sidePanel.classList.remove('closed');
-    sidePanel.classList.add('open');
+function renderArtistDocuments(artist) {
+    return `
+        <div class="ai-tab-placeholder">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            <div><strong>Documents</strong></div>
+            <div>Прикрепление документов, райдеров и техников будет доступно в следующем обновлении.</div>
+        </div>
+    `;
+}
+
+function renderArtistAi(artist) {
+    return `
+        <div class="ai-tab-placeholder">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            <div><strong>AI Intelligence</strong></div>
+            <div>Расширенный AI-ассистент для анализа рисков, подбора событий и прогнозирования спроса будет добавлен позже.</div>
+        </div>
+    `;
 }
 
 // Dashboard rendering
@@ -733,6 +872,14 @@ function renderDashboard() {
     `).join('');
 
     if (!isPublic) {
+        // Missing social/streaming links
+        const missingLinks = generateMissingLinks();
+        const missingSection = document.getElementById('missingLinksSection');
+        if (missingSection) {
+            missingSection.style.display = missingLinks.length > 0 ? 'block' : 'none';
+        }
+        renderTaskList('missingLinksList', 'missingLinksCount', missingLinks);
+
         // Today's tasks
         const tasks = generateTasks();
         renderTaskList('tasksList', 'tasksCount', tasks);
@@ -751,6 +898,13 @@ function renderDashboard() {
         const events = groupByPlannedEvent();
         renderEvents(events);
     }
+}
+
+function generateMissingLinks() {
+    const platforms = ['spotify', 'youtube', 'instagram', 'tiktok', 'yandex', 'soundcloud', 'vk', 'facebook'];
+    return artists
+        .filter(a => !platforms.some(p => a[p] && a[p].trim()))
+        .map(a => ({ artist: a, text: 'Добавить ссылки на соцсети/стриминги', type: 'links' }));
 }
 
 function isOverdue(dateStr) {
@@ -796,10 +950,22 @@ function generateTasks() {
 
 function generateRecommendations() {
     const recs = [];
+    const platforms = [
+        { key: 'spotify', label: 'Spotify', type: 'spotify' },
+        { key: 'youtube', label: 'YouTube', type: 'youtube' },
+        { key: 'instagram', label: 'Instagram', type: 'instagram' },
+        { key: 'tiktok', label: 'TikTok', type: 'tiktok' },
+        { key: 'yandex', label: 'Yandex Music', type: 'yandex' },
+        { key: 'soundcloud', label: 'SoundCloud', type: 'soundcloud' },
+        { key: 'vk', label: 'VK', type: 'vk' },
+        { key: 'facebook', label: 'Facebook', type: 'facebook' }
+    ];
     artists.forEach(a => {
-        if (!a.instagram) {
-            recs.push({ artist: a, text: 'Добавить Instagram', type: 'instagram' });
-        }
+        platforms.forEach(p => {
+            if (!a[p.key] || !a[p.key].trim()) {
+                recs.push({ artist: a, text: `Добавить ${p.label}`, type: p.type });
+            }
+        });
         if ((a.bookingFee === undefined || a.bookingFee === null || a.bookingFee === 0) && (a.price === undefined || a.price === null || a.price === 0)) {
             recs.push({ artist: a, text: 'Указать Booking Fee', type: 'fee' });
         }
@@ -955,6 +1121,12 @@ function populateEditPanel(artist) {
     document.getElementById('artistWebsite').value = a.website || '';
     document.getElementById('artistInstagram').value = a.instagram || '';
     document.getElementById('artistFacebook').value = a.facebook || '';
+    document.getElementById('artistSpotify').value = a.spotify || '';
+    document.getElementById('artistYouTube').value = a.youtube || '';
+    document.getElementById('artistTikTok').value = a.tiktok || '';
+    document.getElementById('artistYandex').value = a.yandex || '';
+    document.getElementById('artistSoundCloud').value = a.soundcloud || '';
+    document.getElementById('artistVK').value = a.vk || '';
     document.getElementById('artistNotes').value = a.notes || '';
 
     // CRM fields
@@ -1129,6 +1301,12 @@ function saveArtist(event) {
         website: document.getElementById('artistWebsite').value,
         instagram: document.getElementById('artistInstagram').value,
         facebook: document.getElementById('artistFacebook').value,
+        spotify: document.getElementById('artistSpotify').value,
+        youtube: document.getElementById('artistYouTube').value,
+        tiktok: document.getElementById('artistTikTok').value,
+        yandex: document.getElementById('artistYandex').value,
+        soundcloud: document.getElementById('artistSoundCloud').value,
+        vk: document.getElementById('artistVK').value,
         notes: document.getElementById('artistNotes').value,
         manager: document.getElementById('artistManager').value,
         lastContact: document.getElementById('artistLastContact').value,
@@ -1156,6 +1334,9 @@ function saveArtist(event) {
 
     saveArtists();
     saveArtistEdit(artistData.id);
+    if (window.AnalyticsService) {
+        window.AnalyticsService.invalidateCache(artistData.id);
+    }
     renderArtists();
     if (currentView === 'dashboard') renderDashboard();
     closeEditPanel();
