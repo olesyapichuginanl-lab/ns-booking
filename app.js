@@ -115,35 +115,16 @@ function normalizeArtist(artist) {
     };
 }
 
-// Load a single source file and return its artists array
-async function loadSourceFile(filename) {
-    try {
-        const response = await fetch(`artists/${filename}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-const list = Array.isArray(data)
-    ? data
-    : Array.isArray(data.artists)
-        ? data.artists
-        : [];
-                console.log(`Loaded: artists/${filename} (${list.length} records)`);
-        return list;
-    } catch (error) {
-        console.warn(`Skipped: artists/${filename} — ${error.message}`);
-        return [];
-    }
-}
 
-// Load artists from artists/index.json and all listed sources
+// Load artists from single production database file
 async function loadArtists() {
     try {
-        const indexResponse = await fetch('artists/index.json');
-        if (!indexResponse.ok) throw new Error('Cannot load artists/index.json');
-        const index = await indexResponse.json();
-        const sources = Array.isArray(index.sources) ? index.sources : [];
-
-        const results = await Promise.all(sources.map(loadSourceFile));
-        artists = results.flat().map(normalizeArtist);
+        // Load from single production database file
+        const response = await fetch('artists.json');
+        if (!response.ok) throw new Error('Cannot load artists.json');
+        const data = await response.json();
+        artists = data.artists.map(normalizeArtist);
+        console.log('Loaded', artists.length, 'artists from production database');
     } catch (error) {
         console.error('Error loading artists:', error);
         artists = [];
@@ -177,9 +158,18 @@ function mergeLocalStorageArtists() {
 
 // Save artists to JSON (simulated - in real app, this would be a backend API)
 function saveArtists() {
-    // In a real application, this would send data to a server
+    // Save to localStorage for UI persistence
     console.log('Artists saved:', artists);
     localStorage.setItem('artists', JSON.stringify(artists));
+    
+    // Create production database format
+    const productionData = {
+        artists: artists
+    };
+    
+    // In a real application, this would save to artists.json file
+    // For now, localStorage provides persistence for the UI
+    console.log('Production data format:', productionData);
 }
 
 // Build filter dropdowns dynamically from current artists
