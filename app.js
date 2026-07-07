@@ -84,19 +84,7 @@ async function renderArtistTab() {
     if (currentArtistTab === 'crm') {
         panelBody.innerHTML = renderArtistCrm(artist);
     } else if (currentArtistTab === 'analytics') {
-        if (typeof window.renderAnalytics !== 'function') {
-            panelBody.innerHTML = '<div class="ai-tab-placeholder">Модуль аналитики не загружен</div>';
-            return;
-        }
-        panelBody.innerHTML = '<div class="ai-tab-placeholder"><svg class="animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>Обновляется...</div>';
-        try {
-            const analytics = window.AnalyticsManager
-                ? await window.AnalyticsManager.refreshArtistAnalytics(artist)
-                : window.__AI_ANALYTICS_DATA__?.[artist.id] || null;
-            panelBody.innerHTML = window.renderAnalytics(analytics);
-        } catch (e) {
-            panelBody.innerHTML = `<div class="ai-tab-placeholder">Не удалось загрузить аналитику: ${escapeHtml(e.message)}</div>`;
-        }
+        panelBody.innerHTML = '<div class="ai-tab-placeholder">Analytics temporarily disabled</div>';
     } else if (currentArtistTab === 'documents') {
         panelBody.innerHTML = renderArtistDocuments(artist);
     } else if (currentArtistTab === 'ai') {
@@ -1339,6 +1327,7 @@ function saveArtist(event) {
     if (currentView === 'dashboard') renderDashboard();
     closeEditPanel();
 }
+
 
 // Delete artist
 function deleteArtist() {

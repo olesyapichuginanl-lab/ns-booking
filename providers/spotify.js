@@ -1,88 +1,167 @@
-import { browserEngine, getText, getAllText, getNumberWithFallback, getNumberByText, getTextByContains, evaluatePage } from './engine.js';
 import { PARSER_CONFIG } from './config.js';
 
 const CONFIG = PARSER_CONFIG.spotify;
+const SPOTIFY_API_BASE = 'https://api.spotify.com/v1';
+const SPOTIFY_ACCOUNTS_BASE = 'https://accounts.spotify.com';
+
+// Cache for access token
+let cachedToken = null;
+let tokenExpiry = null;
+
+// Extract artist ID from Spotify URL
+function extractArtistId(url) {
+  const match = url.match(/open\.spotify\.com\/artist\/([a-zA-Z0-9]+)/);
+  return match ? match[1] : null;
+}
+
+// Get Spotify access token using Client Credentials Flow
+async function getAccessToken() {
+  const clientId = process.env.SPOTIFY_CLIENT_ID || '1c28ccc3ab794e12ba47cfdb418c40ae';
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  
+  if (!clientSecret) {
+    throw new Error('SPOTIFY_CLIENT_SECRET environment variable is required');
+  }
+  
+  // Check if cached token is still valid
+  if (cachedToken && tokenExpiry && Date.now() < tokenExpiry) {
+    console.log('SpotifyProvider: Using cached access token');
+    return cachedToken;
+  }
+  
+  console.log('SpotifyProvider: Requesting new access token');
+  
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  
+  const response = await fetch(`${SPOTIFY_ACCOUNTS_BASE}/api/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_credentials'
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to get access token: ${response.status} ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  cachedToken = data.access_token;
+  tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // Refresh 1 minute before expiry
+  
+  console.log('SpotifyProvider: Got new access token, expires in', data.expires_in, 'seconds');
+  return cachedToken;
+}
+
+// Make authenticated request to Spotify API
+async function spotifyApiRequest(endpoint) {
+  const accessToken = await getAccessToken();
+  
+  const response = await fetch(`${SPOTIFY_API_BASE}${endpoint}`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!response.ok) {
+    if (response.status === 401) {
+      // Token might be expired, clear cache and retry once
+      cachedToken = null;
+      tokenExpiry = null;
+      const newToken = await getAccessToken();
+      
+      const retryResponse = await fetch(`${SPOTIFY_API_BASE}${endpoint}`, {
+        headers: {
+          'Authorization': `Bearer ${newToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!retryResponse.ok) {
+        throw new Error(`Spotify API error: ${retryResponse.status} ${retryResponse.statusText}`);
+      }
+      
+      return await retryResponse.json();
+    }
+    throw new Error(`Spotify API error: ${response.status} ${response.statusText}`);
+  }
+  
+  return await response.json();
+}
 
 export async function collect(url) {
+  console.log('SpotifyProvider: collect called with URL:', url);
   const start = Date.now();
-  let page;
-  let context;
+  
   try {
-    context = await browserEngine.newContext({ locale: 'en-US' });
-    page = await context.newPage();
+    const artistId = extractArtistId(url);
+    if (!artistId) {
+      throw new Error('Invalid Spotify artist URL');
+    }
+    console.log('SpotifyProvider: Extracted artist ID:', artistId);
 
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForTimeout(3000);
-    await page.waitForSelector('h1, [data-testid="entity-title"], [data-testid="monthly-listeners"]', { timeout: 30000 }).catch(() => {});
+    // Fetch artist data
+    console.log('SpotifyProvider: Fetching artist data from API');
+    const artistData = await spotifyApiRequest(`/artists/${artistId}`);
+    
+    // Fetch artist's albums to get latest release
+    console.log('SpotifyProvider: Fetching artist albums');
+    const albumsData = await spotifyApiRequest(`/artists/${artistId}/albums?limit=1&include_groups=album,single&market=US`);
+    
+    // Extract metrics from API response
+    const followers = artistData.followers?.total || null;
+    const popularity = artistData.popularity || null;
+    const artistName = artistData.name || null;
+    
+    // Get latest release
+    const latestRelease = albumsData.items?.[0]?.name || null;
+    const releaseDate = albumsData.items?.[0]?.release_date || null;
+    
+    // Note: Spotify Web API doesn't provide monthly listeners publicly
+    // This metric is only available through Spotify for Artists
+    const monthlyListeners = null;
+    const monthlyPlays = null;
+    const subscribers = null;
 
-    const s = CONFIG.selectors;
-    const fb = CONFIG.fallbackSelectors;
-
-    const artistName = await getText(page, 'h1') || await getText(page, s.artistName) || await getTextWithFallback(page, [s.artistName]);
-    const monthlyListeners = await getNumberByText(page, 'monthly listeners')
-      || await getNumberWithFallback(page, [s.monthlyListeners, fb.monthlyListeners]);
-    const followers = await getNumberByText(page, 'followers')
-      || await getNumberWithFallback(page, [s.followers, fb.followers]);
-
-    const popularTracks = await evaluatePage(page, () => {
-      const tracks = [];
-      document.querySelectorAll('div[role="row"]').forEach(row => {
-        const link = row.querySelector('a[href*="/track/"]');
-        if (link) tracks.push(link.textContent.trim());
-      });
-      return tracks.slice(0, 5);
-    }) || [];
-
-    const latestRelease = await evaluatePage(page, () => {
-      const links = document.querySelectorAll('a[href*="/album/"], a[href*="/single/"]');
-      for (const link of links) {
-        const text = link.textContent.trim();
-        if (text) return text;
-      }
-      return null;
-    }) || await getTextByContains(page, 'Latest release');
-
-    const releaseDate = await getTextByContains(page, 'Latest release') || null;
-    const popularity = null; // Spotify public page does not expose a numeric popularity score.
-
-    const rawValues = { artistName, followers, monthlyListeners, popularTracks, latestRelease, releaseDate };
+    const rawValues = { artistName, followers, monthlyListeners, popularity, latestRelease, releaseDate };
     const parsedFields = Object.keys(rawValues).filter(k => {
       const v = rawValues[k];
-      return v !== null && v !== undefined && (typeof v !== 'object' || v.length > 0);
+      return v !== null && v !== undefined;
     });
 
-    const allMissing = parsedFields.length === 0;
-    if (allMissing) {
-      return errorResult(start, new Error('No public statistics found on the page. The page may be blocked, require login, or have changed layout.'));
+    if (parsedFields.length === 0) {
+      throw new Error('No data available from Spotify API');
     }
 
-    return {
+    const result = {
       followers,
-      subscribers: null,
+      subscribers,
       monthlyListeners,
-      monthlyPlays: null,
+      monthlyPlays,
       popularity,
       latestRelease,
       releaseDate,
       updatedAt: new Date().toISOString(),
-      source: CONFIG.source,
+      source: 'Spotify Web API',
       status: 'success',
       error: null,
       meta: {
         provider: 'spotify',
-        dataSource: CONFIG.source,
-        collectionMethod: CONFIG.method,
+        dataSource: 'Spotify Web API',
+        collectionMethod: 'REST API',
         duration: Date.now() - start,
         parsedFields,
-        missingFields: Object.keys(rawValues).filter(k => !parsedFields.includes(k)),
+        missingFields: ['monthlyListeners', 'monthlyPlays'], // These aren't available in public API
         rawValues,
       },
     };
+    console.log('SpotifyProvider: Returning success result');
+    return result;
   } catch (error) {
+    console.log('FAIL: SpotifyProvider caught error:', error.message);
     return errorResult(start, error);
-  } finally {
-    if (page) await page.close().catch(() => {});
-    if (context) await context.close().catch(() => {});
   }
 }
 
@@ -96,25 +175,17 @@ function errorResult(start, error) {
     latestRelease: null,
     releaseDate: null,
     updatedAt: new Date().toISOString(),
-    source: CONFIG.source,
+    source: 'Spotify Web API',
     status: 'error',
     error: error.message,
     meta: {
       provider: 'spotify',
-      dataSource: CONFIG.source,
-      collectionMethod: CONFIG.method,
+      dataSource: 'Spotify Web API',
+      collectionMethod: 'REST API',
       duration: Date.now() - start,
       parsedFields: [],
       missingFields: [],
       rawValues: null,
     },
   };
-}
-
-async function getTextWithFallback(page, selectors) {
-  for (const selector of selectors) {
-    const text = await getText(page, selector);
-    if (text) return text;
-  }
-  return null;
 }

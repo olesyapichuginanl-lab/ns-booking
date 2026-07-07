@@ -205,6 +205,7 @@
   }
 
   function platformStatusLabel(platformData) {
+    if (!platformData || !platformData.status) return '○ Not configured';
     if (platformData.status === 'success') return '✓ Verified';
     if (platformData.status === 'stale') return '⚠ Stale';
     if (platformData.status === 'error') return '✗ Failed';
@@ -221,10 +222,10 @@
 
     let staleMessage = '';
     if (issue) {
-      const staleDates = Object.values(data.platforms)
+      const staleDates = data.platforms ? Object.values(data.platforms)
         .filter(p => p.status === 'stale' || p.status === 'error')
         .map(p => p.updatedAt)
-        .filter(Boolean);
+        .filter(Boolean) : [];
       const oldestDate = staleDates.length
         ? new Date(Math.min(...staleDates.map(d => new Date(d).getTime())))
         : null;
@@ -318,9 +319,9 @@
       const p = platforms[key] || {};
       const meta = PLATFORM_META[key];
       const m = p.meta || {};
-      const statusClass = p.status === 'success' ? 'ai-status-success' : p.status === 'stale' ? 'ai-status-stale' : p.status === 'error' ? 'ai-status-error' : 'ai-status-off';
-      const statusIcon = p.status === 'success' ? '✓' : p.status === 'stale' ? '⚠' : p.status === 'error' ? '✗' : '—';
-      const statusLabel = p.status === 'success' ? 'Verified' : p.status === 'stale' ? 'Stale' : p.status === 'error' ? 'Failed' : 'Not configured';
+      const statusClass = p && p.status === 'success' ? 'ai-status-success' : p && p.status === 'stale' ? 'ai-status-stale' : p && p.status === 'error' ? 'ai-status-error' : 'ai-status-off';
+      const statusIcon = p && p.status === 'success' ? '✓' : p && p.status === 'stale' ? '⚠' : p && p.status === 'error' ? '✗' : '—';
+      const statusLabel = p && p.status === 'success' ? 'Verified' : p && p.status === 'stale' ? 'Stale' : p && p.status === 'error' ? 'Failed' : 'Not configured';
       const hasMetrics = p.followers !== null || p.subscribers !== null || p.monthlyListeners !== null || p.monthlyPlays !== null || p.popularity !== null;
 
       const metricLines = [];
@@ -329,6 +330,27 @@
       if (p.monthlyListeners !== null) metricLines.push(`${formatNumber(p.monthlyListeners)} monthly listeners`);
       if (p.monthlyPlays !== null) metricLines.push(`${formatNumber(p.monthlyPlays)} monthly plays`);
       if (p.popularity !== null) metricLines.push(`${p.popularity}/100 popularity`);
+
+      // Special handling for Spotify when no data has been collected
+      if (key === 'spotify' && !hasMetrics && !p.error && p && p.status !== 'error') {
+        return `
+          <div class="ai-platform-card ai-platform-missing">
+            <div class="ai-platform-header">
+              ${platformIcon(key)}
+              <div class="ai-platform-name">${meta.name}</div>
+              <div class="ai-platform-status">Not configured</div>
+            </div>
+            <div class="ai-platform-body">
+              <div class="ai-platform-metrics">No Spotify analytics collected.</div>
+              <div class="ai-platform-source">
+                <div><strong>Source:</strong> —</div>
+                <div><strong>Method:</strong> —</div>
+                <div><strong>Updated:</strong> —</div>
+                <div class="ai-platform-source-status ai-status-off"><strong>Status:</strong> — Not configured</div>
+              </div>
+            </div>
+          </div>`;
+      }
 
       return `
         <div class="ai-platform-card ${p.status === 'success' ? 'ai-platform-connected' : p.status === 'error' ? 'ai-platform-invalid' : 'ai-platform-missing'}">
@@ -415,9 +437,20 @@
   }
 
   function renderAnalytics(data) {
-    if (!data || !data.platforms) {
-      return `<div class="ai-analytics"><div class="ai-stale-warning">No analytics available.</div></div>`;
+    console.log('renderAnalytics called with data:', data);
+    
+    if (!data) {
+      console.log('No data provided to renderAnalytics');
+      return `<div class="ai-analytics"><div class="ai-stale-warning">Аналитика недоступна. Нет данных.</div></div>`;
     }
+    
+    if (!data.platforms) {
+      console.log('No platforms in analytics data');
+      return `<div class="ai-analytics"><div class="ai-stale-warning">Аналитика недоступна. Нет данных о платформах.</div></div>`;
+    }
+    
+    console.log('Rendering analytics with platforms:', Object.keys(data.platforms));
+    
     return `
       <div class="ai-analytics">
         ${renderUpdateBar(data)}

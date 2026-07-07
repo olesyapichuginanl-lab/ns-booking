@@ -4,6 +4,7 @@
   "description": "Artist Intelligence analytics engine for NS Booking CRM.",
   "type": "module",
   "scripts": {
+    "start": "node server.js",
     "test-analytics": "node --input-type=module -e \"import('./analytics/AnalyticsManager.js').then(m => new m.AnalyticsManager()).then(am => am.refreshArtistAnalytics({id:'artist_001', spotify:'https://open.spotify.com/artist/4Z8W4fKeB5YxbusRsdQVPb'}).then(r => console.log(JSON.stringify(r, null, 2))))\""
   },
   "dependencies": {

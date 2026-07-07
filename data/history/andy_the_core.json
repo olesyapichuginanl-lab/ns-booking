@@ -1,0 +1,68 @@
+[
+  {
+    "date": "2026-07-07T14:29:07.456Z",
+    "platform": "youtube",
+    "followers": null,
+    "subscribers": null,
+    "monthlyListeners": null,
+    "monthlyPlays": null,
+    "popularity": null,
+    "latestRelease": null,
+    "releaseDate": null
+  },
+  {
+    "date": "2026-07-07T14:29:17.623Z",
+    "platform": "instagram",
+    "followers": 83300,
+    "subscribers": null,
+    "monthlyListeners": null,
+    "monthlyPlays": null,
+    "popularity": null,
+    "latestRelease": "Pinned post icon",
+    "releaseDate": null
+  },
+  {
+    "date": "2026-07-07T14:29:23.979Z",
+    "platform": "soundcloud",
+    "followers": null,
+    "subscribers": null,
+    "monthlyListeners": null,
+    "monthlyPlays": null,
+    "popularity": null,
+    "latestRelease": null,
+    "releaseDate": "Reposted 4 months ago4 months ago"
+  },
+  {
+    "date": "2026-07-07T14:29:33.749Z",
+    "platform": "vk",
+    "followers": null,
+    "subscribers": null,
+    "monthlyListeners": null,
+    "monthlyPlays": null,
+    "popularity": null,
+    "latestRelease": null,
+    "releaseDate": null
+  },
+  {
+    "date": "2026-07-07T14:29:35.661Z",
+    "platform": "yandex",
+    "followers": null,
+    "subscribers": null,
+    "monthlyListeners": null,
+    "monthlyPlays": null,
+    "popularity": null,
+    "latestRelease": null,
+    "releaseDate": null
+  },
+  {
+    "date": "2026-07-07T14:29:35.674Z",
+    "platform": "summary",
+    "followers": 0,
+    "subscribers": 0,
+    "monthlyListeners": 0,
+    "monthlyPlays": 0,
+    "popularity": null,
+    "latestRelease": null,
+    "releaseDate": null
+  }
+]

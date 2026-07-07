@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recover Artists Data</title>
+</head>
+<body>
+    <h1>Recover Artists Data</h1>
+    <button onclick="recoverData()">Copy Artists Data to Clipboard</button>
+    <div id="output"></div>
+    
+    <script>
+        function recoverData() {
+            const artists = localStorage.getItem('artists');
+            if (artists) {
+                navigator.clipboard.writeText(artists).then(() => {
+                    document.getElementById('output').innerHTML = 
+                        '<h3>Data copied to clipboard!</h3>' +
+                        '<p>Now paste this data into the artists.json file</p>' +
+                        '<pre>' + JSON.stringify(JSON.parse(artists), null, 2) + '</pre>';
+                });
+            } else {
+                document.getElementById('output').innerHTML = '<p>No artists data found in localStorage</p>';
+            }
+        }
+    </script>
+</body>
+</html>

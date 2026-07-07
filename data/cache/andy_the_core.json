@@ -1,0 +1,373 @@
+{
+  "artistId": "andy_the_core",
+  "lastUpdated": "2026-07-07T14:29:35.674Z",
+  "platforms": {
+    "spotify": {
+      "followers": null,
+      "subscribers": null,
+      "monthlyListeners": null,
+      "monthlyPlays": null,
+      "popularity": null,
+      "latestRelease": null,
+      "releaseDate": null,
+      "updatedAt": "2026-07-07T14:28:54.323Z",
+      "source": "Spotify Web API",
+      "status": "error",
+      "error": "Spotify API error: 403 Forbidden",
+      "meta": {
+        "provider": "spotify",
+        "dataSource": "Spotify Web API",
+        "collectionMethod": "REST API",
+        "duration": 674,
+        "parsedFields": [],
+        "missingFields": [],
+        "rawValues": null
+      },
+      "url": "https://open.spotify.com/artist/3GEDzLFDpKR3tsq72ZRTP7?si=nkhZkJHDQl2uIp7KU1tAgg",
+      "platform": "spotify"
+    },
+    "youtube": {
+      "followers": null,
+      "subscribers": null,
+      "monthlyListeners": null,
+      "monthlyPlays": null,
+      "popularity": null,
+      "latestRelease": null,
+      "releaseDate": null,
+      "updatedAt": "2026-07-07T14:29:07.456Z",
+      "source": "Public Channel Page",
+      "status": "success",
+      "error": null,
+      "meta": {
+        "provider": "youtube",
+        "dataSource": "Public Channel Page",
+        "collectionMethod": "Rendered Page Parser",
+        "duration": 13135,
+        "parsedFields": [],
+        "missingFields": [
+          "channelName",
+          "subscribers",
+          "videoCount",
+          "viewCount",
+          "latestVideo",
+          "releaseDate"
+        ]
+      },
+      "url": "https://www.youtube.com/@AndyTheCore",
+      "platform": "youtube"
+    },
+    "instagram": {
+      "followers": 83300,
+      "subscribers": null,
+      "monthlyListeners": null,
+      "monthlyPlays": null,
+      "popularity": null,
+      "latestRelease": "Pinned post icon",
+      "releaseDate": null,
+      "updatedAt": "2026-07-07T14:29:17.623Z",
+      "source": "Public Profile Page",
+      "status": "success",
+      "error": null,
+      "meta": {
+        "provider": "instagram",
+        "dataSource": "Public Profile Page",
+        "collectionMethod": "Rendered Page Parser",
+        "duration": 10068,
+        "parsedFields": [
+          "profileName",
+          "followers",
+          "posts",
+          "latestPost"
+        ],
+        "missingFields": [
+          "releaseDate"
+        ]
+      },
+      "url": "https://www.instagram.com/djandythecore/",
+      "platform": "instagram"
+    },
+    "soundcloud": {
+      "followers": null,
+      "subscribers": null,
+      "monthlyListeners": null,
+      "monthlyPlays": null,
+      "popularity": null,
+      "latestRelease": null,
+      "releaseDate": "Reposted 4 months ago4 months ago",
+      "updatedAt": "2026-07-07T14:29:23.979Z",
+      "source": "Public Artist Page",
+      "status": "success",
+      "error": null,
+      "meta": {
+        "provider": "soundcloud",
+        "dataSource": "Public Artist Page",
+        "collectionMethod": "Rendered Page Parser",
+        "duration": 6302,
+        "parsedFields": [
+          "artistName",
+          "followers",
+          "tracks",
+          "releaseDate"
+        ],
+        "missingFields": [
+          "latestTrack"
+        ]
+      },
+      "url": "https://soundcloud.com/andythecore",
+      "platform": "soundcloud"
+    },
+    "vk": {
+      "followers": null,
+      "subscribers": null,
+      "monthlyListeners": null,
+      "monthlyPlays": null,
+      "popularity": null,
+      "latestRelease": null,
+      "releaseDate": null,
+      "updatedAt": "2026-07-07T14:29:33.749Z",
+      "source": "Public Group/Artist Page",
+      "status": "success",
+      "error": null,
+      "meta": {
+        "provider": "vk",
+        "dataSource": "Public Group/Artist Page",
+        "collectionMethod": "Rendered Page Parser",
+        "duration": 9742,
+        "parsedFields": [
+          "name"
+        ],
+        "missingFields": [
+          "members",
+          "latestPost",
+          "releaseDate"
+        ]
+      },
+      "url": "https://vk.com/artist/andythecore",
+      "platform": "vk"
+    },
+    "yandex": {
+      "followers": null,
+      "subscribers": null,
+      "monthlyListeners": null,
+      "monthlyPlays": null,
+      "popularity": null,
+      "latestRelease": null,
+      "releaseDate": null,
+      "updatedAt": "2026-07-07T14:29:35.661Z",
+      "source": "Public Artist Page",
+      "status": "success",
+      "error": null,
+      "meta": {
+        "provider": "yandex",
+        "dataSource": "Public Artist Page",
+        "collectionMethod": "Rendered Page Parser",
+        "duration": 1871,
+        "parsedFields": [
+          "artistName"
+        ],
+        "missingFields": [
+          "followers",
+          "monthlyListeners",
+          "popularTracks",
+          "latestRelease",
+          "releaseDate"
+        ]
+      },
+      "url": "https://music.yandex.ru/artist/1053173",
+      "platform": "yandex"
+    }
+  },
+  "summary": {
+    "totalFollowers": 0,
+    "totalSubscribers": 0,
+    "totalMonthlyListeners": 0,
+    "totalMonthlyPlays": 0,
+    "avgPopularity": null,
+    "platformsConnected": 0,
+    "platformsWithErrors": 0,
+    "latestRelease": null,
+    "lastUpdated": "2026-07-07T14:29:35.674Z",
+    "bookingPotential": null
+  },
+  "charts": {},
+  "history": [],
+  "aiInsight": "Analytics data loaded.",
+  "debug": {
+    "results": {
+      "spotify": {
+        "followers": null,
+        "subscribers": null,
+        "monthlyListeners": null,
+        "monthlyPlays": null,
+        "popularity": null,
+        "latestRelease": null,
+        "releaseDate": null,
+        "updatedAt": "2026-07-07T14:28:54.323Z",
+        "source": "Spotify Web API",
+        "status": "error",
+        "error": "Spotify API error: 403 Forbidden",
+        "meta": {
+          "provider": "spotify",
+          "dataSource": "Spotify Web API",
+          "collectionMethod": "REST API",
+          "duration": 674,
+          "parsedFields": [],
+          "missingFields": [],
+          "rawValues": null
+        },
+        "url": "https://open.spotify.com/artist/3GEDzLFDpKR3tsq72ZRTP7?si=nkhZkJHDQl2uIp7KU1tAgg",
+        "platform": "spotify"
+      },
+      "youtube": {
+        "followers": null,
+        "subscribers": null,
+        "monthlyListeners": null,
+        "monthlyPlays": null,
+        "popularity": null,
+        "latestRelease": null,
+        "releaseDate": null,
+        "updatedAt": "2026-07-07T14:29:07.456Z",
+        "source": "Public Channel Page",
+        "status": "success",
+        "error": null,
+        "meta": {
+          "provider": "youtube",
+          "dataSource": "Public Channel Page",
+          "collectionMethod": "Rendered Page Parser",
+          "duration": 13135,
+          "parsedFields": [],
+          "missingFields": [
+            "channelName",
+            "subscribers",
+            "videoCount",
+            "viewCount",
+            "latestVideo",
+            "releaseDate"
+          ]
+        },
+        "url": "https://www.youtube.com/@AndyTheCore",
+        "platform": "youtube"
+      },
+      "instagram": {
+        "followers": 83300,
+        "subscribers": null,
+        "monthlyListeners": null,
+        "monthlyPlays": null,
+        "popularity": null,
+        "latestRelease": "Pinned post icon",
+        "releaseDate": null,
+        "updatedAt": "2026-07-07T14:29:17.623Z",
+        "source": "Public Profile Page",
+        "status": "success",
+        "error": null,
+        "meta": {
+          "provider": "instagram",
+          "dataSource": "Public Profile Page",
+          "collectionMethod": "Rendered Page Parser",
+          "duration": 10068,
+          "parsedFields": [
+            "profileName",
+            "followers",
+            "posts",
+            "latestPost"
+          ],
+          "missingFields": [
+            "releaseDate"
+          ]
+        },
+        "url": "https://www.instagram.com/djandythecore/",
+        "platform": "instagram"
+      },
+      "soundcloud": {
+        "followers": null,
+        "subscribers": null,
+        "monthlyListeners": null,
+        "monthlyPlays": null,
+        "popularity": null,
+        "latestRelease": null,
+        "releaseDate": "Reposted 4 months ago4 months ago",
+        "updatedAt": "2026-07-07T14:29:23.979Z",
+        "source": "Public Artist Page",
+        "status": "success",
+        "error": null,
+        "meta": {
+          "provider": "soundcloud",
+          "dataSource": "Public Artist Page",
+          "collectionMethod": "Rendered Page Parser",
+          "duration": 6302,
+          "parsedFields": [
+            "artistName",
+            "followers",
+            "tracks",
+            "releaseDate"
+          ],
+          "missingFields": [
+            "latestTrack"
+          ]
+        },
+        "url": "https://soundcloud.com/andythecore",
+        "platform": "soundcloud"
+      },
+      "vk": {
+        "followers": null,
+        "subscribers": null,
+        "monthlyListeners": null,
+        "monthlyPlays": null,
+        "popularity": null,
+        "latestRelease": null,
+        "releaseDate": null,
+        "updatedAt": "2026-07-07T14:29:33.749Z",
+        "source": "Public Group/Artist Page",
+        "status": "success",
+        "error": null,
+        "meta": {
+          "provider": "vk",
+          "dataSource": "Public Group/Artist Page",
+          "collectionMethod": "Rendered Page Parser",
+          "duration": 9742,
+          "parsedFields": [
+            "name"
+          ],
+          "missingFields": [
+            "members",
+            "latestPost",
+            "releaseDate"
+          ]
+        },
+        "url": "https://vk.com/artist/andythecore",
+        "platform": "vk"
+      },
+      "yandex": {
+        "followers": null,
+        "subscribers": null,
+        "monthlyListeners": null,
+        "monthlyPlays": null,
+        "popularity": null,
+        "latestRelease": null,
+        "releaseDate": null,
+        "updatedAt": "2026-07-07T14:29:35.661Z",
+        "source": "Public Artist Page",
+        "status": "success",
+        "error": null,
+        "meta": {
+          "provider": "yandex",
+          "dataSource": "Public Artist Page",
+          "collectionMethod": "Rendered Page Parser",
+          "duration": 1871,
+          "parsedFields": [
+            "artistName"
+          ],
+          "missingFields": [
+            "followers",
+            "monthlyListeners",
+            "popularTracks",
+            "latestRelease",
+            "releaseDate"
+          ]
+        },
+        "url": "https://music.yandex.ru/artist/1053173",
+        "platform": "yandex"
+      }
+    }
+  }
+}

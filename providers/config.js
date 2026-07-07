@@ -7,9 +7,10 @@
 export const PARSER_CONFIG = {
   spotify: {
     name: 'Spotify',
-    source: 'Public Artist Page',
-    method: 'Rendered Page Parser',
+    source: 'Spotify Web API',
+    method: 'REST API',
     domains: ['open.spotify.com'],
+    accessToken: null, // Set via SPOTIFY_ACCESS_TOKEN environment variable
     selectors: {
       artistName: 'h1[data-testid="entity-title"]',
       followers: '[data-testid="stats-followers"]',
