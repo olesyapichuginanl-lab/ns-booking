@@ -84,12 +84,19 @@ async function renderArtistTab() {
     if (currentArtistTab === 'crm') {
         panelBody.innerHTML = renderArtistCrm(artist);
     } else if (currentArtistTab === 'analytics') {
-        if (typeof window.renderArtistAnalytics !== 'function') {
+        if (typeof window.renderAnalytics !== 'function') {
             panelBody.innerHTML = '<div class="ai-tab-placeholder">Модуль аналитики не загружен</div>';
             return;
         }
         panelBody.innerHTML = '<div class="ai-tab-placeholder"><svg class="animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>Обновляется...</div>';
-        panelBody.innerHTML = await window.renderArtistAnalytics(artist);
+        try {
+            const analytics = window.AnalyticsManager
+                ? await window.AnalyticsManager.refreshArtistAnalytics(artist)
+                : window.__AI_ANALYTICS_DATA__?.[artist.id] || null;
+            panelBody.innerHTML = window.renderAnalytics(analytics);
+        } catch (e) {
+            panelBody.innerHTML = `<div class="ai-tab-placeholder">Не удалось загрузить аналитику: ${escapeHtml(e.message)}</div>`;
+        }
     } else if (currentArtistTab === 'documents') {
         panelBody.innerHTML = renderArtistDocuments(artist);
     } else if (currentArtistTab === 'ai') {
@@ -657,10 +664,7 @@ function showSidePanel(id) {
 
     renderArtistTab();
 
-    // Background analytics refresh so history is updated even if user stays on CRM tab
-    if (window.AnalyticsService) {
-        window.AnalyticsService.getArtistAnalytics(artist).catch(() => {});
-    }
+    // Background analytics refresh is now handled by AnalyticsManager in the Node.js runtime.
 }
 
 function renderArtistPlatforms(artist) {
@@ -694,9 +698,6 @@ window.updatePlatformLink = function(artistId, platform, url) {
     artist[platform] = url.trim();
     saveArtists();
     saveArtistEdit(artistId);
-    if (window.AnalyticsService) {
-        window.AnalyticsService.invalidateCache(artistId);
-    }
     if (selectedArtistId === artistId) {
         renderArtistTab();
     }
@@ -1334,9 +1335,6 @@ function saveArtist(event) {
 
     saveArtists();
     saveArtistEdit(artistData.id);
-    if (window.AnalyticsService) {
-        window.AnalyticsService.invalidateCache(artistData.id);
-    }
     renderArtists();
     if (currentView === 'dashboard') renderDashboard();
     closeEditPanel();

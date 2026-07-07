@@ -109,3 +109,28 @@ export async function getNumberWithFallback(page, selectors) {
   }
   return null;
 }
+
+export async function getTextByContains(page, text) {
+  try {
+    const loc = page.locator(`:text("${text.replace(/"/g, '\\"')}")`).first();
+    if (!(await loc.count())) return null;
+    const content = await loc.textContent();
+    return content?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getNumberByText(page, text) {
+  const content = await getTextByContains(page, text);
+  if (!content) return null;
+  return parseNumber(content);
+}
+
+export async function evaluatePage(page, fn, ...args) {
+  try {
+    return await page.evaluate(fn, ...args);
+  } catch {
+    return null;
+  }
+}

@@ -1,11 +1,10 @@
 {
-  "name": "ns-booking-scraper",
+  "name": "ns-booking-analytics",
   "version": "1.0.0",
-  "description": "Local headless scraping engine for Artist Intelligence analytics.",
+  "description": "Artist Intelligence analytics engine for NS Booking CRM.",
   "type": "module",
   "scripts": {
-    "scrape": "node scrapers/cli.js",
-    "test-scraper": "node scrapers/cli.js --provider=spotify --url=https://open.spotify.com/artist/4Z8W4fKeB5YxbusRsdQVPb"
+    "test-analytics": "node --input-type=module -e \"import('./analytics/AnalyticsManager.js').then(m => new m.AnalyticsManager()).then(am => am.refreshArtistAnalytics({id:'artist_001', spotify:'https://open.spotify.com/artist/4Z8W4fKeB5YxbusRsdQVPb'}).then(r => console.log(JSON.stringify(r, null, 2))))\""
   },
   "dependencies": {
     "playwright": "^1.45.0"

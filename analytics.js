@@ -1,150 +1,13 @@
 /**
- * Artist Intelligence — Provider-based Analytics module
- * Architecture:
- *   - CRM stores only URLs.
- *   - PlatformManager validates links and extracts IDs.
- *   - Each Provider returns normalized platform data.
- *   - AnalyticsService builds a unified internal model.
- *   - UI consumes only the normalized model.
+ * Artist Intelligence — UI Rendering Layer
+ *
+ * This module consumes the analytics model produced by
+ * analytics/AnalyticsManager.js. It does not generate data, estimate values,
+ * or call providers. All rendering is based on the passed analytics object.
  */
 
 (function () {
   'use strict';
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // UTILS
-  // ─────────────────────────────────────────────────────────────────────────────
-  function hashString(str) {
-    let h = 0;
-    for (let i = 0; i < (str || '').length; i++) {
-      h = (h << 5) - h + str.charCodeAt(i);
-      h |= 0;
-    }
-    return Math.abs(h);
-  }
-
-  function createSeededRandom(seed) {
-    let s = seed % 2147483647;
-    if (s <= 0) s += 2147483646;
-    return function () {
-      s = (s * 16807) % 2147483647;
-      return (s - 1) / 2147483646;
-    };
-  }
-
-  function randBetween(rng, min, max) {
-    return Math.floor(rng() * (max - min + 1)) + min;
-  }
-
-  function randFloat(rng, min, max) {
-    return rng() * (max - min) + min;
-  }
-
-  function clamp(num, min, max) {
-    return Math.min(Math.max(num, min), max);
-  }
-
-  function formatNumber(n) {
-    if (n === undefined || n === null || n === 0) return '0';
-    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-    return n.toString();
-  }
-
-  function formatPercent(n) {
-    if (n === undefined || n === null) return '-';
-    const sign = n > 0 ? '+' : '';
-    return `${sign}${n.toFixed(1)}%`;
-  }
-
-  function escapeHtml(text) {
-    if (!text) return '';
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function formatDate(date) {
-    if (!date) return '-';
-    const d = new Date(date);
-    if (isNaN(d)) return '-';
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    }).format(d);
-  }
-
-  function daysSince(date) {
-    if (!date) return null;
-    const d = new Date(date);
-    if (isNaN(d)) return null;
-    return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
-  }
-
-  function trendIndicator(change) {
-    const value = parseFloat(change) || 0;
-    const sign = value >= 0 ? '↑' : '↓';
-    const cls = value >= 0 ? 'text-emerald-400' : 'text-rose-400';
-    return `<span class="${cls}">${sign} ${Math.abs(value).toFixed(1)}%</span>`;
-  }
-
-  function pickOne(rng, arr) {
-    return arr[Math.floor(rng() * arr.length)];
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // RELEASE DATA
-  // ─────────────────────────────────────────────────────────────────────────────
-  const RELEASE_NAMES = [
-    'Echoes of Tomorrow', 'Neon Nights', 'Static Bloom', 'Afterglow EP',
-    'Midnight Signal', 'Pulse Theory', 'Gravity Shift', 'Lost Frequencies',
-    'Vivid Dreams', 'Resonance', 'Shadows & Light', 'Horizon', 'Orbital',
-    'Quantum Bloom', 'Silent Frequency', 'Prism', 'Aurora', 'Nocturnal'
-  ];
-
-  function randomRecentRelease(rng) {
-    const date = new Date();
-    date.setDate(date.getDate() - randBetween(rng, 7, 180));
-    return {
-      title: pickOne(rng, RELEASE_NAMES),
-      date: date.toISOString().split('T')[0]
-    };
-  }
-
-  // Realistic audience estimate derived from CRM data (fee, genre, country, name).
-  // The same artist + platform always produces the same number (seeded), but the
-  // scale follows the artist's booking fee tier.
-  function estimateArtistAudience(artist) {
-    const fee = parseInt(artist?.bookingFee) || parseInt(artist?.price) || 0;
-    const entropy = hashString((artist?.name || '') + '|' + (artist?.genre || '') + '|' + (artist?.country || '')) / 2147483647;
-    const variation = 0.5 + entropy; // 0.5x .. 1.5x
-
-    let base = 1000;
-    if (fee >= 10000) base = 500000;
-    else if (fee >= 5000) base = 200000;
-    else if (fee >= 2000) base = 80000;
-    else if (fee >= 1000) base = 30000;
-    else if (fee >= 500) base = 10000;
-    else if (fee >= 100) base = 3000;
-
-    return Math.max(100, Math.floor(base * variation));
-  }
-
-  function estimatePlatformFollowers(artist, platform, rng) {
-    const base = estimateArtistAudience(artist);
-    const ranges = {
-      spotify:   [0.50, 2.50], // Spotify monthly listeners can be the largest
-      youtube:   [0.10, 1.00], // YouTube subscribers are harder to earn
-      instagram: [0.20, 2.00], // Instagram followers often match Spotify
-      soundcloud:[0.05, 0.50], // SoundCloud is usually smaller
-      vk:        [0.10, 1.50], // VK audience for Russian-speaking artists
-      yandex:    [0.10, 1.00]  // Yandex Music listeners
-    };
-    const [min, max] = ranges[platform] || [0.1, 1.0];
-    return randBetween(rng, Math.floor(base * min), Math.max(Math.floor(base * min) + 1, Math.floor(base * max)));
-  }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // PLATFORM CONFIGURATION
@@ -186,7 +49,6 @@
 
   // ─────────────────────────────────────────────────────────────────────────────
   // LINK VALIDATION & PLATFORM MANAGEMENT
-  // CRM stores only URLs. Everything else is derived here.
   // ─────────────────────────────────────────────────────────────────────────────
   const LinkValidator = {
     patterns: {
@@ -229,629 +91,51 @@
     }
   };
 
-  function createProviderMeta(provider, collectionMethod, dataSource = 'Public Artist Page', overrides = {}) {
-    return {
-      provider,
-      dataSource,
-      collectionMethod,
-      status: 'success',
-      error: null,
-      lastUpdated: new Date().toISOString(),
-      duration: 0,
-      parsedFields: [],
-      missingFields: [],
-      rawValues: null,
-      ...overrides
-    };
-  }
-
   // ─────────────────────────────────────────────────────────────────────────────
-  // PROVIDERS
-  // Each provider returns a normalized snapshot. No UI logic here.
-  // Future API integrations replace these stubs without touching the UI.
+  // UTILS
   // ─────────────────────────────────────────────────────────────────────────────
-  class BaseProvider {
-    constructor(name) {
-      this.name = name;
-    }
-
-    async fetch(artist) {
-      throw new Error(`Provider ${this.name} must implement fetch()`);
-    }
-
-    _rng(artist) {
-      const status = PlatformManager.getStatus(artist, this.name);
-      return createSeededRandom(hashString(
-        (artist?.id || 'unknown') + '|' +
-        (status.extractedId || '') + '|' +
-        this.name + '|' +
-        (artist?.bookingFee || artist?.price || '') + '|' +
-        (artist?.genre || '') + '|' +
-        (artist?.country || '')
-      ));
-    }
+  function formatNumber(n) {
+    if (n === undefined || n === null || n === 0) return '0';
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return n.toString();
   }
 
-  class SpotifyProvider extends BaseProvider {
-    constructor() { super('spotify'); }
-    async fetch(artist) {
-      const status = PlatformManager.getStatus(artist, 'spotify');
-      const rng = this._rng(artist);
-      const followers = status.connected ? estimatePlatformFollowers(artist, 'spotify', rng) : 0;
-      const popularity = status.connected ? randBetween(rng, 35, 98) : 0;
-      const release = status.connected ? randomRecentRelease(rng) : null;
-      return {
-        provider: 'spotify',
-        status,
-        followers,
-        followersGrowth: status.connected ? randFloat(rng, -2, 12) : 0,
-        popularity,
-        popularityTrend: status.connected ? randFloat(rng, -3, 8) : 0,
-        latestRelease: release?.title || null,
-        releaseDate: release?.date || null,
-        meta: createProviderMeta('spotify', 'CRM Estimation (placeholder)')
-      };
-    }
+  function formatDate(date) {
+    if (!date) return '-';
+    const d = new Date(date);
+    if (isNaN(d)) return '-';
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    }).format(d);
   }
 
-  class YouTubeProvider extends BaseProvider {
-    constructor() { super('youtube'); }
-    async fetch(artist) {
-      const status = PlatformManager.getStatus(artist, 'youtube');
-      const rng = this._rng(artist);
-      const followers = status.connected ? estimatePlatformFollowers(artist, 'youtube', rng) : 0;
-      const popularity = status.connected ? randBetween(rng, 30, 95) : 0;
-      const release = status.connected ? randomRecentRelease(rng) : null;
-      return {
-        provider: 'youtube',
-        status,
-        followers,
-        followersGrowth: status.connected ? randFloat(rng, -2, 10) : 0,
-        popularity,
-        popularityTrend: status.connected ? randFloat(rng, -3, 7) : 0,
-        latestRelease: release?.title || null,
-        releaseDate: release?.date || null,
-        meta: createProviderMeta('youtube', 'CRM Estimation (placeholder)')
-      };
-    }
+  function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
-  class InstagramProvider extends BaseProvider {
-    constructor() { super('instagram'); }
-    async fetch(artist) {
-      const status = PlatformManager.getStatus(artist, 'instagram');
-      const rng = this._rng(artist);
-      const followers = status.connected ? estimatePlatformFollowers(artist, 'instagram', rng) : 0;
-      const popularity = status.connected ? randBetween(rng, 25, 90) : 0;
-      const release = status.connected ? randomRecentRelease(rng) : null;
-      return {
-        provider: 'instagram',
-        status,
-        followers,
-        followersGrowth: status.connected ? randFloat(rng, -2, 14) : 0,
-        popularity,
-        popularityTrend: status.connected ? randFloat(rng, -4, 9) : 0,
-        latestRelease: release?.title || null,
-        releaseDate: release?.date || null,
-        meta: createProviderMeta('instagram', 'CRM Estimation (placeholder)')
-      };
-    }
+  function daysSince(date) {
+    if (!date) return null;
+    const d = new Date(date);
+    if (isNaN(d)) return null;
+    return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
   }
 
-  class SoundCloudProvider extends BaseProvider {
-    constructor() { super('soundcloud'); }
-    async fetch(artist) {
-      const status = PlatformManager.getStatus(artist, 'soundcloud');
-      const rng = this._rng(artist);
-      const followers = status.connected ? estimatePlatformFollowers(artist, 'soundcloud', rng) : 0;
-      const popularity = status.connected ? randBetween(rng, 20, 85) : 0;
-      const release = status.connected ? randomRecentRelease(rng) : null;
-      return {
-        provider: 'soundcloud',
-        status,
-        followers,
-        followersGrowth: status.connected ? randFloat(rng, -3, 11) : 0,
-        popularity,
-        popularityTrend: status.connected ? randFloat(rng, -4, 8) : 0,
-        latestRelease: release?.title || null,
-        releaseDate: release?.date || null,
-        meta: createProviderMeta('soundcloud', 'CRM Estimation (placeholder)')
-      };
-    }
+  function clamp(num, min, max) {
+    return Math.min(Math.max(num, min), max);
   }
 
-  class VKProvider extends BaseProvider {
-    constructor() { super('vk'); }
-    async fetch(artist) {
-      const status = PlatformManager.getStatus(artist, 'vk');
-      const rng = this._rng(artist);
-      const followers = status.connected ? estimatePlatformFollowers(artist, 'vk', rng) : 0;
-      const popularity = status.connected ? randBetween(rng, 25, 88) : 0;
-      const release = status.connected ? randomRecentRelease(rng) : null;
-      return {
-        provider: 'vk',
-        status,
-        followers,
-        followersGrowth: status.connected ? randFloat(rng, -2, 9) : 0,
-        popularity,
-        popularityTrend: status.connected ? randFloat(rng, -3, 6) : 0,
-        latestRelease: release?.title || null,
-        releaseDate: release?.date || null,
-        meta: createProviderMeta('vk', 'CRM Estimation (placeholder)')
-      };
-    }
-  }
-
-  class YandexMusicProvider extends BaseProvider {
-    constructor() { super('yandex'); }
-
-    async fetch(artist) {
-      const status = PlatformManager.getStatus(artist, 'yandex');
-      const rng = this._rng(artist);
-      const followers = status.connected ? estimatePlatformFollowers(artist, 'yandex', rng) : 0;
-      const popularity = status.connected ? randBetween(rng, 35, 98) : 0;
-      const release = status.connected ? randomRecentRelease(rng) : null;
-      return {
-        provider: 'yandex',
-        status,
-        followers,
-        followersGrowth: status.connected ? randFloat(rng, -2, 9) : 0,
-        popularity,
-        popularityTrend: status.connected ? randFloat(rng, -3, 6) : 0,
-        latestRelease: release?.title || null,
-        releaseDate: release?.date || null,
-        meta: createProviderMeta('yandex', 'Headless Browser (Playwright) - not yet integrated')
-      };
-    }
-  }
-
-  const Providers = [
-    new SpotifyProvider(),
-    new YouTubeProvider(),
-    new InstagramProvider(),
-    new SoundCloudProvider(),
-    new VKProvider(),
-    new YandexMusicProvider()
-  ];
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // NORMALIZED ANALYTICS MODEL
-  // One internal model. UI does not depend on provider source.
-  // ─────────────────────────────────────────────────────────────────────────────
-  function buildNormalizedModel(artist, providerResults) {
-    const now = new Date().toISOString();
-    const platforms = {};
-
-    providerResults.forEach(r => {
-      platforms[r.provider] = {
-        provider: r.provider,
-        name: PLATFORM_META[r.provider].name,
-        status: r.status,
-        connected: r.status.connected,
-        invalid: r.status.invalid,
-        missing: r.status.missing,
-        url: r.status.url,
-        extractedId: r.status.extractedId,
-        followers: r.followers,
-        followersGrowth: r.followersGrowth,
-        popularity: r.popularity,
-        popularityTrend: r.popularityTrend,
-        latestRelease: r.latestRelease,
-        releaseDate: r.releaseDate,
-        daysSinceRelease: daysSince(r.releaseDate),
-        lastUpdated: now,
-        yandex: r.yandex || null,
-        meta: r.meta || createProviderMeta(r.provider, 'Unknown')
-      };
-    });
-
-    const connected = Object.values(platforms).filter(p => p.connected);
-    const totalFollowers = connected.reduce((sum, p) => sum + p.followers, 0);
-    const avgFollowersGrowth = connected.length
-      ? connected.reduce((sum, p) => sum + p.followersGrowth, 0) / connected.length
-      : 0;
-    const avgPopularity = connected.length
-      ? connected.reduce((sum, p) => sum + p.popularity, 0) / connected.length
-      : 0;
-    const avgPopularityTrend = connected.length
-      ? connected.reduce((sum, p) => sum + p.popularityTrend, 0) / connected.length
-      : 0;
-
-    const latestRelease = connected
-      .filter(p => p.releaseDate)
-      .sort((a, b) => new Date(b.releaseDate) - new Date(a.releaseDate))[0] || null;
-
-    const yandexData = platforms.yandex?.yandex || null;
-
-    return {
-      artistId: artist?.id,
-      lastUpdated: now,
-      platforms,
-      summary: {
-        totalFollowers,
-        avgFollowersGrowth,
-        avgPopularity,
-        avgPopularityTrend,
-        latestRelease,
-        daysSinceRelease: latestRelease?.daysSinceRelease || null,
-        connectedCount: connected.length,
-        platformCount: providerResults.length,
-        yandex: yandexData,
-        // Populated by AnalyticsService after history is built:
-        followersChange7d: 0,
-        followersChange30d: 0,
-        popularityChange: 0,
-        audienceGrowthTrend: 'stable',
-        momentumScore: 0,
-        momentumLabel: 'Neutral',
-        momentumReasons: [],
-        aiInsight: '',
-        releaseTimeline: [],
-        isGrowing: false,
-        goodTimeToBook: false
-      }
-    };
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // HISTORY STORE
-  // Every update appends a snapshot. Never overwrites previous values.
-  // ─────────────────────────────────────────────────────────────────────────────
-  const HistoryStore = {
-    key(artistId) {
-      return `ai_history_${artistId}`;
-    },
-
-    load(artistId) {
-      try {
-        return JSON.parse(localStorage.getItem(this.key(artistId)) || '[]');
-      } catch (e) {
-        return [];
-      }
-    },
-
-    save(artistId, history) {
-      localStorage.setItem(this.key(artistId), JSON.stringify(history));
-    },
-
-    append(artistId, snapshot) {
-      const history = this.load(artistId);
-      history.push(snapshot);
-      this.save(artistId, history);
-      return history;
-    }
-  };
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // SYNTHETIC HISTORY & TREND HELPERS
-  // Generate backfilled history so charts and change metrics work from day one.
-  // ─────────────────────────────────────────────────────────────────────────────
-  function generateSyntheticHistory(artistId, analytics) {
-    const days = 30;
-    const existing = HistoryStore.load(artistId);
-    if (existing.length >= days) return;
-
-    const endDate = new Date();
-    const s = analytics.summary;
-
-    if (s.totalFollowers > 0) {
-      const startFollowers = Math.floor(s.totalFollowers / Math.max(1.01, 1 + (s.avgFollowersGrowth / 100)));
-      const startPopularity = clamp(s.avgPopularity - s.avgPopularityTrend, 0, 100);
-      for (let i = 0; i < days; i++) {
-        const t = i / (days - 1);
-        const date = new Date(endDate);
-        date.setDate(date.getDate() - (days - 1 - i));
-        const f = Math.floor(startFollowers + (s.totalFollowers - startFollowers) * t);
-        const p = Math.round(startPopularity + (s.avgPopularity - startPopularity) * t);
-        HistoryStore.append(artistId, {
-          date: date.toISOString(),
-          provider: 'summary',
-          followers: f,
-          popularity: p,
-          latestRelease: s.latestRelease?.latestRelease || null,
-          releaseDate: s.latestRelease?.releaseDate || null
-        });
-      }
-    }
-
-    Object.values(analytics.platforms).forEach(p => {
-      if (!p.connected || p.followers === 0) return;
-      const startFollowers = Math.floor(p.followers / Math.max(1.01, 1 + (p.followersGrowth / 100)));
-      const startPopularity = clamp(p.popularity - p.popularityTrend, 0, 100);
-      for (let i = 0; i < days; i++) {
-        const t = i / (days - 1);
-        const date = new Date(endDate);
-        date.setDate(date.getDate() - (days - 1 - i));
-        const f = Math.floor(startFollowers + (p.followers - startFollowers) * t);
-        const pop = Math.round(startPopularity + (p.popularity - startPopularity) * t);
-        HistoryStore.append(artistId, {
-          date: date.toISOString(),
-          provider: p.provider,
-          followers: f,
-          popularity: pop,
-          latestRelease: p.latestRelease,
-          releaseDate: p.releaseDate
-        });
-      }
-    });
-  }
-
-  function calculateChange(history, provider, days, key) {
-    const providerHistory = history.filter(h => h.provider === provider);
-    if (providerHistory.length < 2) return 0;
-    const now = providerHistory[providerHistory.length - 1];
-    const past = providerHistory.find(h => {
-      const d = (new Date(now.date) - new Date(h.date)) / (1000 * 60 * 60 * 24);
-      return d >= days;
-    });
-    if (!past || !now[key] || !past[key]) return 0;
-    return ((now[key] - past[key]) / past[key]) * 100;
-  }
-
-  function buildReleaseTimeline(analytics) {
-    const map = new Map();
-    Object.values(analytics.platforms).forEach(p => {
-      if (!p.latestRelease || !p.releaseDate) return;
-      const key = `${p.latestRelease}|${p.releaseDate}`;
-      if (!map.has(key)) {
-        map.set(key, {
-          title: p.latestRelease,
-          date: p.releaseDate,
-          daysSince: daysSince(p.releaseDate),
-          providers: []
-        });
-      }
-      map.get(key).providers.push(p.provider);
-    });
-    return Array.from(map.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // SCORING ENGINE
-  // Configurable weighted momentum score for booking decisions.
-  // ─────────────────────────────────────────────────────────────────────────────
-  const ScoringEngine = {
-    weights: {
-      followersGrowth: 0.35,
-      popularityChange: 0.25,
-      releaseFreshness: 0.15,
-      releaseFrequency: 0.10,
-      socialActivity: 0.15
-    },
-
-    setWeights(weights) {
-      this.weights = { ...this.weights, ...weights };
-    },
-
-    calculateMomentum(s) {
-      const followersGrowthScore = clamp((s.followersChange30d + 50) / 100 * 100, 0, 100);
-      const popularityChangeScore = clamp((s.popularityChange + 50) / 100 * 100, 0, 100);
-      const releaseFreshnessScore = s.daysSinceRelease !== null
-        ? clamp(100 - (s.daysSinceRelease / 90) * 100, 0, 100)
-        : 0;
-      const releaseFrequencyScore = clamp(s.connectedCount * 20, 0, 100);
-      const socialActivityScore = clamp((s.connectedCount / 6) * 100, 0, 100);
-
-      const score =
-        followersGrowthScore * this.weights.followersGrowth +
-        popularityChangeScore * this.weights.popularityChange +
-        releaseFreshnessScore * this.weights.releaseFreshness +
-        releaseFrequencyScore * this.weights.releaseFrequency +
-        socialActivityScore * this.weights.socialActivity;
-
-      return clamp(Math.round(score), 0, 100);
-    },
-
-    label(score) {
-      if (score >= 80) return 'Strong Growth';
-      if (score >= 60) return 'Stable Growth';
-      if (score >= 40) return 'Neutral';
-      if (score >= 20) return 'Slowing';
-      return 'Declining';
-    },
-
-    reasons(s) {
-      const reasons = [];
-      if (s.followersChange30d > 5) reasons.push('Followers are increasing');
-      else if (s.followersChange30d < -2) reasons.push('Followers are decreasing');
-
-      if (s.popularityChange > 3) reasons.push('Popularity is increasing');
-      else if (s.popularityChange < -3) reasons.push('Popularity is decreasing');
-
-      if (s.daysSinceRelease !== null && s.daysSinceRelease < 30) reasons.push('Recent release performed well');
-
-      if (s.followersChange7d > s.followersChange30d / 4) reasons.push('Audience growth is accelerating');
-      else if (s.followersChange7d < s.followersChange30d / 4) reasons.push('Audience growth is decelerating');
-
-      if (reasons.length === 0) {
-        reasons.push(s.isGrowing ? 'Audience is growing steadily' : 'Audience is stable');
-      }
-      return reasons;
-    }
-  };
-
-  function recoverProviderFromHistory(artistId, providerResult) {
-    if (providerResult.meta.status === 'success') return providerResult;
-    if (!providerResult.status.connected) return providerResult;
-
-    const history = HistoryStore.load(artistId);
-    const last = history.filter(h => h.provider === providerResult.provider).pop();
-    if (!last) return providerResult;
-
-    return {
-      ...providerResult,
-      followers: last.followers,
-      popularity: last.popularity,
-      latestRelease: last.latestRelease,
-      releaseDate: last.releaseDate,
-      yandex: last.yandex || null,
-      meta: {
-        ...providerResult.meta,
-        status: 'stale',
-        lastUpdated: last.date,
-        error: providerResult.meta.error
-      }
-    };
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // ANALYTICS SERVICE
-  // Orchestrates providers. UI talks only to this service.
-  // ─────────────────────────────────────────────────────────────────────────────
-  window.AnalyticsService = {
-    cacheKey(artistId) {
-      return `ai_cache_${artistId}`;
-    },
-
-    loadCache(artistId) {
-      try {
-        const raw = localStorage.getItem(this.cacheKey(artistId));
-        return raw ? JSON.parse(raw) : null;
-      } catch (e) {
-        return null;
-      }
-    },
-
-    saveCache(artistId, analytics) {
-      localStorage.setItem(this.cacheKey(artistId), JSON.stringify(analytics));
-    },
-
-    invalidateCache(artistId) {
-      localStorage.removeItem(this.cacheKey(artistId));
-    },
-
-    async getArtistAnalytics(artist, forceRefresh = false) {
-      const artistId = artist?.id || 'unknown';
-      const cached = !forceRefresh && this.loadCache(artistId);
-      if (cached && cached.lastUpdated && !forceRefresh) {
-        const ageHours = (Date.now() - new Date(cached.lastUpdated).getTime()) / (1000 * 60 * 60);
-        if (ageHours < 24) {
-          cached.cached = true;
-          return cached;
-        }
-      }
-
-      const rawResults = await Promise.all(Providers.map(p => p.fetch(artist)));
-      // Recover failed providers from previous history so we never lose valid data
-      const results = rawResults.map(r => recoverProviderFromHistory(artistId, r));
-
-      const connectedResults = results.filter(r => r.status.connected);
-      const allConnectedFailed = connectedResults.length > 0 && connectedResults.every(r => r.meta.status === 'error');
-
-      // If every connected provider failed and we have cached data, return the previous cache
-      if (allConnectedFailed && cached) {
-        cached.cached = true;
-        cached.hasStaleData = true;
-        cached.staleProviders = connectedResults.map(r => ({ provider: r.provider, error: r.meta.error }));
-        return cached;
-      }
-
-      const analytics = buildNormalizedModel(artist, results);
-      analytics.hasStaleData = connectedResults.some(r => r.meta.status === 'stale');
-      analytics.staleProviders = connectedResults
-        .filter(r => r.meta.status === 'stale')
-        .map(r => ({ provider: r.provider, error: r.meta.error }));
-      analytics.failedProviders = connectedResults
-        .filter(r => r.meta.status === 'error')
-        .map(r => ({ provider: r.provider, error: r.meta.error }));
-
-      // Backfill history so charts and trends work from day one
-      generateSyntheticHistory(artistId, analytics);
-
-      // Summary snapshot (only if we have connected providers)
-      if (analytics.summary.connectedCount > 0) {
-        HistoryStore.append(artistId, {
-          date: analytics.lastUpdated,
-          provider: 'summary',
-          followers: analytics.summary.totalFollowers,
-          popularity: analytics.summary.avgPopularity,
-          latestRelease: analytics.summary.latestRelease?.latestRelease || null,
-          releaseDate: analytics.summary.latestRelease?.releaseDate || null
-        });
-      }
-
-      // Per-provider snapshots: skip hard errors so we never overwrite valid data with empty values
-      results.forEach(r => {
-        if (r.status.connected && r.meta.status !== 'error') {
-          const snapshot = {
-            date: analytics.lastUpdated,
-            provider: r.provider,
-            followers: r.followers,
-            popularity: r.popularity,
-            latestRelease: r.latestRelease,
-            releaseDate: r.releaseDate,
-            meta: r.meta
-          };
-          if (r.provider === 'yandex' && r.yandex) {
-            snapshot.yandex = r.yandex;
-          }
-          HistoryStore.append(artistId, snapshot);
-        }
-      });
-
-      analytics.history = HistoryStore.load(artistId);
-
-      // Enrich summary with trends, scoring, release timeline and AI insight
-      const s = analytics.summary;
-      s.followersChange7d = calculateChange(analytics.history, 'summary', 7, 'followers');
-      s.followersChange30d = calculateChange(analytics.history, 'summary', 30, 'followers');
-      s.popularityChange = calculateChange(analytics.history, 'summary', 30, 'popularity');
-      s.audienceGrowthTrend = s.followersChange30d > 5 ? 'accelerating' : s.followersChange30d > 0 ? 'growing' : s.followersChange30d > -3 ? 'stable' : 'declining';
-      s.isGrowing = s.followersChange30d > 0;
-      s.releaseTimeline = buildReleaseTimeline(analytics);
-      s.momentumScore = ScoringEngine.calculateMomentum(s);
-      s.momentumLabel = ScoringEngine.label(s.momentumScore);
-      s.momentumReasons = ScoringEngine.reasons(s);
-      s.goodTimeToBook = s.momentumScore >= 70 && s.followersChange30d > 0;
-      s.aiInsight = generateAiInsight(s, analytics.history);
-
-      this.saveCache(artistId, analytics);
-      analytics.cached = false;
-      return analytics;
-    }
-  };
-
-  function generateAiInsight(s, history) {
-    const insights = [];
-
-    if (s.releaseTimeline?.length && s.daysSinceRelease !== null && s.daysSinceRelease < 30 && s.followersChange30d > 5) {
-      insights.push('The latest release resulted in noticeable follower growth.');
-    }
-    if (s.followersChange30d > 10) insights.push('Audience growth has accelerated during the last month.');
-    if (s.followersChange30d < -5) insights.push('Audience growth has slowed during the last month.');
-    if (Math.abs(s.followersChange30d) < 2) insights.push('Popularity remains stable.');
-
-    const yandexHistory = history.filter(h => h.provider === 'yandex' && h.yandex);
-    if (yandexHistory.length >= 2 && s.yandex) {
-      const now = yandexHistory[yandexHistory.length - 1].yandex;
-      const past = yandexHistory[0].yandex;
-
-      if (now.monthly_plays && past.monthly_plays && now.monthly_plays > past.monthly_plays) {
-        insights.push('Monthly plays increased.');
-      } else if (now.monthly_plays && past.monthly_plays && now.monthly_plays < past.monthly_plays) {
-        insights.push('Monthly plays decreased.');
-      }
-
-      if (now.ratings?.month && past.ratings?.month && now.ratings.month > past.ratings.month) {
-        insights.push('Artist rating improved.');
-      } else if (now.ratings?.month && past.ratings?.month && now.ratings.month < past.ratings.month) {
-        insights.push('Artist rating declined.');
-      }
-    }
-
-    if (s.yandex?.latest_release_date) {
-      const days = daysSince(s.yandex.latest_release_date);
-      insights.push(`Latest release was published ${days} days ago.`);
-    }
-
-    if (s.yandex?.release_frequency !== null && s.yandex?.release_frequency !== undefined && s.yandex.release_frequency < 1) {
-      insights.push('Release frequency has slowed.');
-    }
-
-    if (insights.length === 0) {
-      return 'No measurable release impact detected.';
-    }
-    return insights.join(' ');
+  function trendIndicator(change) {
+    const value = parseFloat(change) || 0;
+    const sign = value >= 0 ? '↑' : '↓';
+    const cls = value >= 0 ? 'text-emerald-400' : 'text-rose-400';
+    return `<span class="${cls}">${sign} ${Math.abs(value).toFixed(1)}%</span>`;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -886,7 +170,7 @@
         <circle cx="${size / 2}" cy="${size / 2}" r="${radius}" fill="none" stroke="${color}" stroke-width="${stroke}"
           stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round"
           transform="rotate(-90 ${size / 2} ${size / 2})"/>
-        <text x="50%" y="50%" dy="0.1em" text-anchor="middle" class="ai-donut-text">${percent}</text>
+        <text x="50%" y="50%" dy="0.1em" text-anchor="middle" class="ai-donut-text">${percent ?? '-'}</text>
       </svg>`;
   }
 
@@ -920,165 +204,92 @@
     return `<span class="ai-platform-icon" style="color:${PLATFORM_META[platform].color}">${PLATFORM_META[platform].icon}</span>`;
   }
 
-  function platformStatusText(status) {
-    if (status.connected) return '✓ Connected';
-    if (status.invalid) return '⚠ Invalid link';
-    return '○ Not specified';
+  function platformStatusLabel(platformData) {
+    if (platformData.status === 'success') return '✓ Verified';
+    if (platformData.status === 'stale') return '⚠ Stale';
+    if (platformData.status === 'error') return '✗ Failed';
+    return '○ Not configured';
   }
 
-  function generateHistorySeries(history, provider, key) {
-    const values = history
-      .filter(h => h.provider === provider)
-      .map(h => h[key])
-      .filter(v => typeof v === 'number');
-    return values.length >= 2 ? values : null;
-  }
-
-  function getYandexMetricSeries(history, key) {
-    return history
-      .filter(h => h.provider === 'yandex' && h.yandex && typeof h.yandex[key] === 'number')
-      .map(h => h.yandex[key]);
-  }
-
-  function getYandexRatingsSeries(history, key) {
-    return history
-      .filter(h => h.provider === 'yandex' && h.yandex?.ratings && typeof h.yandex.ratings[key] === 'number')
-      .map(h => h.yandex.ratings[key]);
+  function hasIssue(data) {
+    return Object.values(data.platforms || {}).some(p => p.status === 'error' || p.status === 'stale');
   }
 
   function renderUpdateBar(data) {
     const lastUpdated = data.lastUpdated;
-    const staleProviders = data.staleProviders || [];
-    const failedProviders = data.failedProviders || [];
-    const hasIssue = staleProviders.length > 0 || failedProviders.length > 0;
+    const issue = hasIssue(data);
 
     let staleMessage = '';
-    if (hasIssue) {
+    if (issue) {
       const staleDates = Object.values(data.platforms)
-        .filter(p => p.connected && (p.meta.status === 'stale' || p.meta.status === 'error'))
-        .map(p => p.meta.lastUpdated)
+        .filter(p => p.status === 'stale' || p.status === 'error')
+        .map(p => p.updatedAt)
         .filter(Boolean);
       const oldestDate = staleDates.length
         ? new Date(Math.min(...staleDates.map(d => new Date(d).getTime())))
         : null;
       staleMessage = oldestDate
-        ? `⚠ Last update failed. Showing data collected ${formatDate(oldestDate)}.`
-        : '⚠ Last update failed. Showing previously collected data.';
+        ? `⚠ Last update failed. Showing previous verified data collected ${formatDate(oldestDate)}.`
+        : '⚠ Last update failed. Showing previous verified data.';
     }
 
     return `
       <div class="ai-update-bar">
         <div class="ai-update-info">
-          <span class="ai-dot ${hasIssue ? 'ai-dot-warning' : 'ai-dot-active'}"></span>
+          <span class="ai-dot ${issue ? 'ai-dot-warning' : 'ai-dot-active'}"></span>
           <span>Last Updated: ${formatDate(lastUpdated)}</span>
         </div>
-        ${hasIssue ? `<div class="ai-stale-warning">${staleMessage}</div>` : ''}
+        ${issue ? `<div class="ai-stale-warning">${staleMessage}</div>` : ''}
       </div>`;
   }
 
-  function renderYandexMetrics(s, history) {
-    const yandex = s.yandex;
-    if (!yandex) return '';
+  function renderKPIs(summary) {
+    const rows = [];
+    if (summary.totalFollowers !== null) rows.push(statCard('Followers', formatNumber(summary.totalFollowers)));
+    if (summary.totalSubscribers !== null) rows.push(statCard('Subscribers', formatNumber(summary.totalSubscribers)));
+    if (summary.totalMonthlyListeners !== null) rows.push(statCard('Monthly Listeners', formatNumber(summary.totalMonthlyListeners)));
+    if (summary.totalMonthlyPlays !== null) rows.push(statCard('Monthly Plays', formatNumber(summary.totalMonthlyPlays)));
+    if (summary.avgPopularity !== null) rows.push(statCard('Avg Popularity', summary.avgPopularity + '/100'));
+    rows.push(statCard('Platforms Connected', summary.platformsConnected.toString()));
+    rows.push(statCard('Platforms With Errors', summary.platformsWithErrors.toString()));
+    rows.push(statCard('Latest Release', escapeHtml(summary.latestRelease?.title) || '—', undefined, summary.latestRelease?.date ? formatDate(summary.latestRelease.date) : ''));
+    rows.push(statCard('Booking Potential', summary.bookingPotential !== null ? summary.bookingPotential : '—'));
 
-    const cards = [];
-    if (yandex.popularity !== null && yandex.popularity !== undefined) {
-      cards.push(statCard('Yandex Popularity', yandex.popularity.toFixed(1), undefined));
-    }
-    if (yandex.ratings?.month !== null && yandex.ratings?.month !== undefined) {
-      cards.push(statCard('Yandex Rating (Month)', yandex.ratings.month.toFixed(1), undefined));
-    }
-    if (yandex.ratings?.week !== null && yandex.ratings?.week !== undefined) {
-      cards.push(statCard('Yandex Rating (Week)', yandex.ratings.week.toFixed(1), undefined));
-    }
-    if (yandex.release_frequency !== null && yandex.release_frequency !== undefined) {
-      cards.push(statCard('Release Frequency', yandex.release_frequency.toFixed(1) + '/year', undefined));
-    }
-    if (yandex.monthly_plays !== null && yandex.monthly_plays !== undefined) {
-      cards.push(statCard('Monthly Plays', formatNumber(yandex.monthly_plays), undefined));
-    }
-    if (yandex.monthly_listeners !== null && yandex.monthly_listeners !== undefined) {
-      cards.push(statCard('Monthly Listeners', formatNumber(yandex.monthly_listeners), undefined));
-    }
-
-    const charts = [];
-    const popSeries = getYandexMetricSeries(history, 'popularity');
-    if (popSeries.length >= 2) {
-      charts.push(chartCard('Yandex Popularity History', areaSparklineSVG(popSeries, '#ffcc00', 120)));
-    }
-    ['month', 'week', 'day'].forEach(key => {
-      const series = getYandexRatingsSeries(history, key);
-      if (series.length >= 2) {
-        charts.push(chartCard(`Yandex Rating (${key})`, areaSparklineSVG(series, '#ffcc00', 120)));
-      }
-    });
-
-    if (cards.length === 0 && charts.length === 0) return '';
-
-    return `
-      <div class="ai-section">
-        ${sectionHeader('Yandex Music Metrics')}
-        ${cards.length ? `<div class="ai-grid ai-cols-4">${cards.join('')}</div>` : ''}
-        ${charts.length ? `<div class="ai-grid ai-cols-2">${charts.join('')}</div>` : ''}
-      </div>`;
-  }
-
-  function renderKPIs(s) {
     return `
       <div class="ai-section">
         ${sectionHeader('KPI')}
-        <div class="ai-grid ai-cols-4">
-          ${statCard('Followers', formatNumber(s.totalFollowers), s.followersChange30d)}
-          ${statCard('Followers Change (7d)', formatPercent(s.followersChange7d), s.followersChange7d)}
-          ${statCard('Followers Change (30d)', formatPercent(s.followersChange30d), s.followersChange30d)}
-          ${statCard('Audience Growth Trend', s.audienceGrowthTrend, s.followersChange30d)}
-          ${statCard('Popularity Score', s.avgPopularity.toFixed(1) + '/100', s.popularityChange)}
-          ${statCard('Popularity Change', formatPercent(s.popularityChange), s.popularityChange)}
-          ${statCard('Latest Release', escapeHtml(s.latestRelease?.latestRelease) || '—', undefined, s.latestRelease?.releaseDate ? formatDate(s.latestRelease.releaseDate) : '')}
-          ${statCard('Days Since Release', s.daysSinceRelease !== null ? s.daysSinceRelease + ' days' : '—', undefined)}
-        </div>
+        <div class="ai-grid ai-cols-4">${rows.join('')}</div>
       </div>`;
   }
 
-  function renderMomentumScore(s) {
-    const color = s.momentumScore >= 80 ? '#10b981' : s.momentumScore >= 60 ? '#3b82f6' : s.momentumScore >= 40 ? '#f59e0b' : '#ef4444';
-    return `
-      <div class="ai-section">
-        ${sectionHeader('Momentum Score')}
-        <div class="ai-momentum-card">
-          <div class="ai-momentum-chart">${donutChart(s.momentumScore, color, 160, 14)}</div>
-          <div class="ai-momentum-info">
-            <div class="ai-momentum-value">${s.momentumScore}</div>
-            <div class="ai-momentum-label" style="color:${color}">${s.momentumLabel}</div>
-            <ul class="ai-momentum-reasons">
-              ${s.momentumReasons.map(r => `<li>${r}</li>`).join('')}
-            </ul>
-          </div>
-        </div>
-      </div>`;
-  }
-
-  function renderAiInsight(s) {
+  function renderAiInsight(data) {
     return `
       <div class="ai-section">
         ${sectionHeader('AI Insight')}
         <div class="ai-card">
           <div class="ai-card-body">
-            <div class="ai-insight">${escapeHtml(s.aiInsight)}</div>
+            <div class="ai-insight">${escapeHtml(data.aiInsight || 'Not enough historical data.')}</div>
           </div>
         </div>
       </div>`;
   }
 
-  function renderGlobalCharts(history) {
-    const followersSeries = generateHistorySeries(history, 'summary', 'followers');
-    const popularitySeries = generateHistorySeries(history, 'summary', 'popularity');
+  function renderCharts(charts) {
+    const followers = charts?.followersGrowth?.map(p => p.value);
+    const subscribers = charts?.subscribersGrowth?.map(p => p.value);
+    const monthlyPlays = charts?.monthlyPlaysTrend?.map(p => p.value);
+
+    const cards = [];
+    if (followers && followers.length >= 2) cards.push(chartCard('Followers Growth', areaSparklineSVG(followers, '#3b82f6', 120)));
+    if (subscribers && subscribers.length >= 2) cards.push(chartCard('Subscribers Growth', areaSparklineSVG(subscribers, '#ff0000', 120)));
+    if (monthlyPlays && monthlyPlays.length >= 2) cards.push(chartCard('Monthly Plays Trend', areaSparklineSVG(monthlyPlays, '#8b5cf6', 120)));
+
+    if (cards.length === 0) return '';
+
     return `
       <div class="ai-section">
         ${sectionHeader('Trends')}
-        <div class="ai-grid ai-cols-2">
-          ${chartCard('Followers History', followersSeries ? areaSparklineSVG(followersSeries, '#3b82f6', 120) : '<div class="ai-platform-empty">Insufficient data</div>')}
-          ${chartCard('Popularity History', popularitySeries ? areaSparklineSVG(popularitySeries, '#8b5cf6', 120) : '<div class="ai-platform-empty">Insufficient data</div>')}
-        </div>
+        <div class="ai-grid ai-cols-2">${cards.join('')}</div>
       </div>`;
   }
 
@@ -1089,7 +300,7 @@
         <div class="ai-timeline-dot"></div>
         <div class="ai-timeline-content">
           <div class="ai-timeline-title">${escapeHtml(r.title)}</div>
-          <div class="ai-timeline-meta">${formatDate(r.date)} · ${r.daysSince} days ago · ${r.providers.map(p => PLATFORM_META[p].name).join(', ')}</div>
+          <div class="ai-timeline-meta">${formatDate(r.date)} · ${daysSince(r.date) ?? '?'} days ago · ${(r.platforms || []).map(p => PLATFORM_META[p]?.name || p).join(', ')}</div>
         </div>
       </div>
     `).join('');
@@ -1104,33 +315,38 @@
 
   function renderPlatforms(platforms) {
     const cards = PLATFORM_ORDER.map(key => {
-      const p = platforms[key];
+      const p = platforms[key] || {};
       const meta = PLATFORM_META[key];
       const m = p.meta || {};
-      const statusClass = m.status === 'success' ? 'ai-status-success' : m.status === 'stale' ? 'ai-status-stale' : m.status === 'error' ? 'ai-status-error' : 'ai-status-off';
-      const statusIcon = m.status === 'success' ? '✓' : m.status === 'stale' ? '⚠' : m.status === 'error' ? '✗' : '—';
-      const statusLabel = m.status === 'success' ? 'Success' : m.status === 'stale' ? 'Stale' : m.status === 'error' ? 'Failed' : 'Not configured';
+      const statusClass = p.status === 'success' ? 'ai-status-success' : p.status === 'stale' ? 'ai-status-stale' : p.status === 'error' ? 'ai-status-error' : 'ai-status-off';
+      const statusIcon = p.status === 'success' ? '✓' : p.status === 'stale' ? '⚠' : p.status === 'error' ? '✗' : '—';
+      const statusLabel = p.status === 'success' ? 'Verified' : p.status === 'stale' ? 'Stale' : p.status === 'error' ? 'Failed' : 'Not configured';
+      const hasMetrics = p.followers !== null || p.subscribers !== null || p.monthlyListeners !== null || p.monthlyPlays !== null || p.popularity !== null;
+
+      const metricLines = [];
+      if (p.followers !== null) metricLines.push(`${formatNumber(p.followers)} followers`);
+      if (p.subscribers !== null) metricLines.push(`${formatNumber(p.subscribers)} subscribers`);
+      if (p.monthlyListeners !== null) metricLines.push(`${formatNumber(p.monthlyListeners)} monthly listeners`);
+      if (p.monthlyPlays !== null) metricLines.push(`${formatNumber(p.monthlyPlays)} monthly plays`);
+      if (p.popularity !== null) metricLines.push(`${p.popularity}/100 popularity`);
 
       return `
-        <div class="ai-platform-card ${p.connected ? 'ai-platform-connected' : p.invalid ? 'ai-platform-invalid' : 'ai-platform-missing'}">
+        <div class="ai-platform-card ${p.status === 'success' ? 'ai-platform-connected' : p.status === 'error' ? 'ai-platform-invalid' : 'ai-platform-missing'}">
           <div class="ai-platform-header">
             ${platformIcon(key)}
             <div class="ai-platform-name">${meta.name}</div>
-            <div class="ai-platform-status" title="${p.connected ? 'Valid link' : p.invalid ? 'Invalid link' : 'Not specified'}">${platformStatusText(p.status)}</div>
+            <div class="ai-platform-status">${platformStatusLabel(p)}</div>
           </div>
-          ${p.connected ? `
           <div class="ai-platform-body">
-            <div class="ai-platform-metrics">
-              ${formatNumber(p.followers)} followers · ${p.popularity}/100 popularity
-            </div>
+            ${hasMetrics ? `<div class="ai-platform-metrics">${metricLines.join(' · ')}</div>` : ''}
             <div class="ai-platform-source">
-              <div><strong>Source:</strong> ${m.dataSource || '—'}</div>
-              <div><strong>Method:</strong> ${m.collectionMethod || '—'}</div>
-              <div><strong>Updated:</strong> ${m.lastUpdated ? formatDate(m.lastUpdated) : '—'}</div>
+              <div><strong>Source:</strong> ${p.source || m.dataSource || '—'}</div>
+              <div><strong>Method:</strong> ${m.collectionMethod || 'Rendered Page Parser'}</div>
+              <div><strong>Updated:</strong> ${p.updatedAt ? formatDate(p.updatedAt) : '—'}</div>
               <div class="ai-platform-source-status ${statusClass}"><strong>Status:</strong> ${statusIcon} ${statusLabel}</div>
-              ${m.error ? `<div class="ai-platform-error"><strong>Error:</strong> ${escapeHtml(m.error)}</div>` : ''}
+              ${p.error ? `<div class="ai-platform-error"><strong>Error:</strong> ${escapeHtml(p.error)}</div>` : ''}
             </div>
-          </div>` : ''}
+          </div>
         </div>`;
     }).join('');
     return `
@@ -1145,18 +361,18 @@
     if (!isAdmin) return '';
 
     const rows = PLATFORM_ORDER.map(key => {
-      const p = data.platforms[key];
+      const p = data.platforms[key] || {};
       const m = p.meta || {};
+      const d = data.debug?.[key] || {};
       return `
         <div class="ai-debug-row">
           <div class="ai-debug-provider">${PLATFORM_META[key].name}</div>
-          <div class="ai-debug-status ai-status-${m.status}">${m.status}</div>
-          <div class="ai-debug-field"><strong>Last refresh:</strong> ${m.lastUpdated ? formatDate(m.lastUpdated) : '—'}</div>
-          <div class="ai-debug-field"><strong>Duration:</strong> ${m.duration ? m.duration + ' ms' : '—'}</div>
-          <div class="ai-debug-field"><strong>Parsed:</strong> ${m.parsedFields?.join(', ') || '—'}</div>
-          <div class="ai-debug-field"><strong>Missing:</strong> ${m.missingFields?.join(', ') || '—'}</div>
-          <div class="ai-debug-field"><strong>Error:</strong> ${m.error ? escapeHtml(m.error) : '—'}</div>
-          ${m.rawValues ? `<details class="ai-debug-raw"><summary>Raw parsed values</summary><pre>${escapeHtml(JSON.stringify(m.rawValues, null, 2))}</pre></details>` : ''}
+          <div class="ai-debug-status ai-status-${p.status}">${p.status}</div>
+          <div class="ai-debug-field"><strong>Last refresh:</strong> ${d.lastRefresh ? formatDate(d.lastRefresh) : '—'}</div>
+          <div class="ai-debug-field"><strong>Duration:</strong> ${d.duration ? d.duration + ' ms' : '—'}</div>
+          <div class="ai-debug-field"><strong>Parsed:</strong> ${d.parsedFields?.join(', ') || '—'}</div>
+          <div class="ai-debug-field"><strong>Missing:</strong> ${d.missingFields?.join(', ') || '—'}</div>
+          <div class="ai-debug-field"><strong>Error:</strong> ${d.lastError ? escapeHtml(d.lastError) : '—'}</div>
         </div>
       `;
     }).join('');
@@ -1174,10 +390,11 @@
   }
 
   function renderHistory(history) {
+    if (!history || history.length === 0) return '';
     const rows = history.slice().reverse().slice(0, 10).map(h => `
       <div class="ai-history-row">
         <div class="ai-history-date">${formatDate(h.date)}</div>
-        <div class="ai-history-provider">${h.provider}</div>
+        <div class="ai-history-provider">${h.platform || '—'}</div>
         <div class="ai-history-followers">${formatNumber(h.followers)}</div>
         <div class="ai-history-popularity">${h.popularity ? h.popularity.toFixed(1) : '-'}</div>
         <div class="ai-history-release">${h.latestRelease || '—'}</div>
@@ -1197,34 +414,30 @@
       </div>`;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // MAIN RENDERER
-  // ─────────────────────────────────────────────────────────────────────────────
-  window.renderArtistAnalytics = async function (artist) {
-    const data = await window.AnalyticsService.getArtistAnalytics(artist);
+  function renderAnalytics(data) {
+    if (!data || !data.platforms) {
+      return `<div class="ai-analytics"><div class="ai-stale-warning">No analytics available.</div></div>`;
+    }
     return `
       <div class="ai-analytics">
         ${renderUpdateBar(data)}
         ${renderKPIs(data.summary)}
-        ${renderMomentumScore(data.summary)}
-        ${renderAiInsight(data.summary)}
-        ${renderYandexMetrics(data.summary, data.history)}
-        ${renderGlobalCharts(data.history)}
-        ${renderReleaseTimeline(data.summary.releaseTimeline)}
+        ${renderAiInsight(data)}
+        ${renderCharts(data.charts)}
+        ${renderReleaseTimeline(data.charts?.releaseTimeline)}
         ${renderPlatforms(data.platforms)}
         ${renderDebugPanel(data)}
         ${renderHistory(data.history)}
       </div>
     `;
-  };
+  }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // PUBLIC API FOR CRM & FUTURE INTEGRATIONS
+  // PUBLIC API
   // ─────────────────────────────────────────────────────────────────────────────
-  window.LinkValidator = LinkValidator;
-  window.PlatformManager = PlatformManager;
+  window.renderAnalytics = renderAnalytics;
   window.PLATFORM_ORDER = PLATFORM_ORDER;
   window.PLATFORM_META = PLATFORM_META;
-  window.HistoryStore = HistoryStore;
-  window.ScoringEngine = ScoringEngine;
+  window.LinkValidator = LinkValidator;
+  window.PlatformManager = PlatformManager;
 })();
